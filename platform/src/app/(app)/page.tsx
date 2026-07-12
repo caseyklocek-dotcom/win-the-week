@@ -299,6 +299,14 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-3">
           <ServiceSwitcher />
+          {doneCount < 3 && (
+            <Link
+              href="/quick"
+              className="hidden items-center gap-1.5 rounded-full bg-coral-500 px-4 py-2 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition-colors hover:bg-coral-600 sm:flex"
+            >
+              <Icon name="sparkle" size={15} /> 15-Minute Plan
+            </Link>
+          )}
           <Link
             href="/profile"
             className="hidden items-center gap-1.5 rounded-full border border-charcoal-100 px-3.5 py-2 text-sm font-semibold text-charcoal-600 transition hover:border-charcoal-200 sm:flex"

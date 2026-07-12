@@ -48,6 +48,7 @@ function fmtServiceDate(iso: string) {
 // Every-page routes. `keywords` catch the words a leader would actually type.
 const ROUTES: { href: string; label: string; icon: string; keywords: string; hint?: string }[] = [
   { href: "/", label: "This Sunday", icon: "home", keywords: "home dashboard today overview" },
+  { href: "/quick", label: "The 15-minute plan", icon: "sparkle", keywords: "quick plan fast fifteen 15 minute wizard flow" },
   { href: "/plan", label: "Plan the service", icon: "check", keywords: "plan pray prep loop service" },
   { href: "/set", label: "Worship set", icon: "music", keywords: "set songs order setlist build" },
   { href: "/team", label: "Team for this Sunday", icon: "users", keywords: "team roster assign roles fill" },
