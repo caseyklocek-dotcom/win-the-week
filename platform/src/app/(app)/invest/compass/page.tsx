@@ -110,7 +110,7 @@ function CompassInner() {
               Begin <Icon name="arrowRight" size={16} />
             </button>
             <div className="mt-4">
-              <Link href="/growth" className="text-xs font-semibold text-charcoal-400 hover:underline">
+              <Link href="/invest" className="text-xs font-semibold text-charcoal-400 hover:underline">
                 Back to Goals &amp; Growth
               </Link>
             </div>
@@ -253,7 +253,7 @@ function CompassInner() {
 
           <div className="flex flex-wrap justify-center gap-3">
             <Link
-              href="/growth"
+              href="/invest"
               className="inline-flex items-center gap-2 rounded-lg bg-coral-500 px-5 py-3 text-sm font-semibold text-white shadow-[var(--shadow-coral)] transition hover:bg-coral-600"
             >
               Done, back to Growth

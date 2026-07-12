@@ -5,6 +5,10 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 export type ThemePref = "system" | "light" | "dark";
 export const THEME_KEY = "wtw_theme";
 
+// V2 is light-first: with no saved preference the app opens in the warm,
+// editorial light theme. Dark and system stay one tap away.
+const DEFAULT_PREF: ThemePref = "light";
+
 // Resolve a preference to the actual mode, consulting the OS for "system".
 function resolve(pref: ThemePref): "light" | "dark" {
   if (pref === "system") {
@@ -30,13 +34,13 @@ interface ThemeApi {
 const ThemeContext = createContext<ThemeApi | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemePref>("system");
+  const [theme, setThemeState] = useState<ThemePref>(DEFAULT_PREF);
   const [resolved, setResolved] = useState<"light" | "dark">("light");
 
   // Read the saved preference once on mount.
   useEffect(() => {
     const saved =
-      (localStorage.getItem(THEME_KEY) as ThemePref | null) ?? "system";
+      (localStorage.getItem(THEME_KEY) as ThemePref | null) ?? DEFAULT_PREF;
     setThemeState(saved);
     const r = resolve(saved);
     setResolved(r);
@@ -79,4 +83,4 @@ export function useTheme(): ThemeApi {
 
 // Runs before paint to set the correct class and avoid a flash of the
 // wrong theme. Injected as an inline script in the document head.
-export const THEME_INIT_SCRIPT = `(function(){try{var p=localStorage.getItem('${THEME_KEY}')||'system';var d=p==='dark'||(p==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`;
+export const THEME_INIT_SCRIPT = `(function(){try{var p=localStorage.getItem('${THEME_KEY}')||'light';var d=p==='dark'||(p==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`;

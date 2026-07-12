@@ -62,7 +62,7 @@ const STEPS: Step[] = [
     body: "The runway shows what to do 8, 4, 3, 2, and 1 weeks out, so no Sunday sneaks up on you.",
   },
   {
-    route: "/growth",
+    route: "/invest",
     selector: '[data-tour="growth"]',
     title: "Grow as a leader",
     body: "Take the Worship Leadership Compass, set quarterly goals, and raise up the people around you.",

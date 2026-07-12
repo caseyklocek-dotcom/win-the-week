@@ -108,7 +108,7 @@ export default function ToolsPage() {
               </p>
               <p className="mt-2 text-xs text-charcoal-400">
                 Looking for the Worship Leadership Compass? It lives in{" "}
-                <Link href="/growth/compass" className="font-semibold text-coral-600 hover:underline">
+                <Link href="/invest/compass" className="font-semibold text-coral-600 hover:underline">
                   Goals &amp; Growth
                 </Link>
                 , alongside the goals it sets.

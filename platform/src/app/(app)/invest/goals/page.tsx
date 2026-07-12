@@ -247,7 +247,7 @@ export default function GoalsPage() {
         >
           <Icon name="plus" size={14} /> Add a goal
         </button>
-        <Link href="/growth" className="text-xs font-semibold text-charcoal-400 hover:underline">
+        <Link href="/invest" className="text-xs font-semibold text-charcoal-400 hover:underline">
           ← Back to Growth
         </Link>
       </div>

@@ -829,10 +829,10 @@ export default function TeamPage() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Label>Who you&rsquo;re raising up</Label>
           <Link
-            href="/growth/leaders"
+            href="/invest/leaders"
             className="inline-flex items-center gap-1 text-xs font-semibold text-teal-600 hover:underline"
           >
-            Open the Leader Track <Icon name="arrowRight" size={13} />
+            Open Leaders On Deck <Icon name="arrowRight" size={13} />
           </Link>
         </div>
         <p className="mt-1 text-xs text-charcoal-400">

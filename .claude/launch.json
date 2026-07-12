@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "platform-v2",
+      "cwd": "platform",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:local", "--", "-p", "3002"],
+      "port": 3002
+    }
+  ]
+}

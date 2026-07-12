@@ -105,7 +105,7 @@ export default function LeadersPage() {
         <Card className="border-coral-300 bg-gradient-to-br from-white to-coral-100/40">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="max-w-xl">
-              <Label>Leader Track</Label>
+              <Label>Leaders On Deck</Label>
               <h2 className="mt-1 text-xl font-bold text-charcoal-900">
                 Start raising your next leader
               </h2>
@@ -232,7 +232,7 @@ function LeaderDetail({
             <Icon name="arrowRight" size={13} className="rotate-180" /> All leaders
           </button>
         ) : (
-          <Link href="/growth" className="text-xs font-semibold text-charcoal-400 hover:underline">
+          <Link href="/invest" className="text-xs font-semibold text-charcoal-400 hover:underline">
             ← Back to Growth
           </Link>
         )}

@@ -288,8 +288,8 @@ export default function Dashboard() {
     <Card>
       <div className="flex items-center justify-between">
         <Label>Your quarterly goals</Label>
-        <Link href="/growth/goals" className="text-xs font-semibold text-teal-600 hover:underline">
-          Goals &amp; Growth
+        <Link href="/invest/goals" className="text-xs font-semibold text-teal-600 hover:underline">
+          Invest your week
         </Link>
       </div>
       <div className="mt-4 space-y-4">
@@ -307,7 +307,7 @@ export default function Dashboard() {
         )}
       </div>
       <Link
-        href="/growth/compass"
+        href="/invest/compass"
         className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-coral-600 hover:underline"
       >
         Take the Compass <Icon name="arrowRight" size={14} />

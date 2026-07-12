@@ -24,7 +24,7 @@ const PRIMARY: NavItem[] = [
 
 const MORE: NavItem[] = [
   { href: "/people", label: "Team", icon: "users" },
-  { href: "/growth", label: "Goals & Growth", icon: "target" },
+  { href: "/invest", label: "Invest", icon: "target" },
   { href: "/tools", label: "Tools", icon: "tool" },
   { href: "/community", label: "Community", icon: "community" },
   { href: "/profile", label: "Profile", icon: "settings" },

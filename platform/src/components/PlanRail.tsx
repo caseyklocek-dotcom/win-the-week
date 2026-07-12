@@ -31,8 +31,8 @@ export function PlanRail() {
           the real Leader Track (state.leaders); the header opens the full
           page and each name deep-links straight to that person. */}
       <Card>
-        <Link href="/growth/leaders" className="group flex items-center justify-between">
-          <Label>Leader Track</Label>
+        <Link href="/invest/leaders" className="group flex items-center justify-between">
+          <Label>Leaders On Deck</Label>
           <Icon name="arrowRight" size={14} className="text-charcoal-300 transition group-hover:text-teal-500" />
         </Link>
         <p className="mt-1 text-xs text-charcoal-400">
@@ -40,8 +40,8 @@ export function PlanRail() {
         </p>
         <div className="mt-4 space-y-2.5">
           {leaders.length === 0 && (
-            <Link href="/growth/leaders" className="block text-xs font-semibold text-teal-600 hover:underline">
-              No one on the Leader Track yet. Start raising someone up →
+            <Link href="/invest/leaders" className="block text-xs font-semibold text-teal-600 hover:underline">
+              No one on deck yet. Start raising someone up →
             </Link>
           )}
           {leaders.map((l) => {
@@ -72,7 +72,7 @@ export function PlanRail() {
 
       {/* Quarterly goals — the Growth side, so it carries the teal accent
           rather than coral. Links to /growth/goals where goals are editable. */}
-      <Link href="/growth/goals" className="block group">
+      <Link href="/invest/goals" className="block group">
         <Card className="transition group-hover:border-teal-300">
           <div className="flex items-center justify-between">
             <Label>Your quarterly goals</Label>

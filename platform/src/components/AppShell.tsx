@@ -1,59 +1,42 @@
 "use client";
 
+// ============================================================
+// V2 App Shell — editorial top nav.
+//
+// The sidebar is gone. One calm header carries the whole app: wordmark,
+// six destinations, the ⌘K command pill, the Guided/Fast mode switch, and
+// the leader's avatar. Content sits on the warm cream canvas in a single
+// readable column. Coral marks the weekly work; Invest wears teal — the
+// long game gets its own color, per the design system.
+// ============================================================
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
-import { ServicesIcon } from "./ServicesIcon";
 import { useStore } from "@/lib/store";
+import { profileMode } from "@/lib/mode";
 import { ThemeToggle } from "./ThemeToggle";
 import { BottomNav } from "./BottomNav";
 import { Coach } from "./Coach";
 import { Tour } from "./Tour";
+import { CommandPalette, openPalette } from "./CommandPalette";
 
-const NAV_SECTIONS: {
-  label?: string;
-  items: { href: string; label: string; icon: string; match?: string[] }[];
-}[] = [
-  {
-    items: [{ href: "/", label: "Dashboard", icon: "home" }],
-  },
-  {
-    label: "Sunday",
-    items: [
-      {
-        href: "/plan",
-        label: "Services",
-        icon: "services",
-        match: ["/plan", "/set", "/team", "/rehearse", "/packet"],
-      },
-      { href: "/calendar", label: "Calendar", icon: "calendar" },
-    ],
-  },
-  {
-    label: "Library",
-    items: [
-      { href: "/songs", label: "Songs", icon: "music" },
-      { href: "/people", label: "Team", icon: "users" },
-    ],
-  },
-  {
-    label: "Grow",
-    items: [
-      { href: "/growth", label: "Goals & Growth", icon: "target" },
-      { href: "/tools", label: "Tools", icon: "tool" },
-      { href: "/community", label: "Community", icon: "community" },
-    ],
-  },
+type NavItem = {
+  href: string;
+  label: string;
+  match?: string[];
+  invest?: boolean; // teal accent — the long-game side of the app
+};
+
+const NAV: NavItem[] = [
+  { href: "/", label: "This Sunday" },
+  { href: "/plan", label: "Plan", match: ["/plan", "/set", "/team", "/rehearse", "/packet"] },
+  { href: "/calendar", label: "Calendar" },
+  { href: "/songs", label: "Songs" },
+  { href: "/people", label: "People" },
+  { href: "/invest", label: "Invest", invest: true, match: ["/invest", "/tools", "/community"] },
 ];
-
-function fmtDate(iso: string) {
-  return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 function LogoMark({ className = "" }: { className?: string }) {
   return (
@@ -66,10 +49,7 @@ function LogoMark({ className = "" }: { className?: string }) {
   );
 }
 
-function navItemActive(
-  item: { href: string; match?: string[] },
-  pathname: string,
-): boolean {
+function navItemActive(item: NavItem, pathname: string): boolean {
   return item.match
     ? item.match.some((m) => pathname === m || pathname.startsWith(m + "/"))
     : item.href === "/"
@@ -77,21 +57,24 @@ function navItemActive(
       : pathname.startsWith(item.href);
 }
 
+// Detect the platform once so the pill shows the right modifier key.
+function useCmdLabel() {
+  const [label, setLabel] = useState("⌘K");
+  useEffect(() => {
+    const mac = /Mac|iPhone|iPad/.test(navigator.platform ?? "");
+    setLabel(mac ? "⌘K" : "Ctrl K");
+  }, []);
+  return label;
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { state, activeService } = useStore();
+  const { state, setState } = useStore();
+  const cmdLabel = useCmdLabel();
 
-  // Pulse the active nav item briefly whenever the active section changes — a
-  // soft cue for where you are, most useful as the first-run tour moves around.
-  const activeHref =
-    NAV_SECTIONS.flatMap((s) => s.items).find((it) => navItemActive(it, pathname))?.href ?? null;
-  const [pulseHref, setPulseHref] = useState<string | null>(null);
-  useEffect(() => {
-    if (!activeHref) return;
-    setPulseHref(activeHref);
-    const t = setTimeout(() => setPulseHref(null), 2400);
-    return () => clearTimeout(t);
-  }, [activeHref]);
+  const mode = profileMode(state.profile);
+  const setMode = (m: "guided" | "fast") =>
+    setState((s) => ({ ...s, profile: { ...s.profile, mode: m } }));
 
   const initials = state.profile.name
     .split(" ")
@@ -100,114 +83,126 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     .join("");
 
   return (
-    <div className="flex min-h-screen bg-cream-100">
-      {/* Sidebar */}
-      <aside className="no-print fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-charcoal-100 bg-white px-4 py-6 lg:flex">
-        <Link href="/" className="mb-8 flex items-center gap-2.5 px-2">
-          <LogoMark className="h-8 w-8 text-coral-500" />
-          <span className="headline text-lg leading-none">
-            Win the<br />Week
-          </span>
-        </Link>
-
-        <nav className="flex flex-col gap-5">
-          {NAV_SECTIONS.map((section, i) => (
-            <div key={section.label ?? i} className="flex flex-col gap-1">
-              {section.label && (
-                <div className="label px-3 pb-1 text-[0.65rem] text-charcoal-300">
-                  {section.label}
-                </div>
-              )}
-              {section.items.map((item) => {
-                const active = navItemActive(item, pathname);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                      active
-                        ? "bg-coral-100 text-coral-600"
-                        : "text-charcoal-600 hover:bg-cream-200"
-                    } ${item.href === pulseHref ? "nav-pulse" : ""}`}
-                  >
-                    {item.icon === "services" ? (
-                      <ServicesIcon open={active} size={18} />
-                    ) : (
-                      <Icon name={item.icon} size={18} />
-                    )}
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-
-        <div className="mt-auto space-y-3">
-          <div className="px-1">
-            <ThemeToggle size="sm" />
-          </div>
-          <Link
-            href="/profile"
-            className="flex items-center gap-3 rounded-lg border border-charcoal-100 p-3 hover:bg-cream-200"
-          >
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-charcoal-800 text-xs font-bold text-white dark:bg-coral-500">
-              {initials}
+    <div className="flex min-h-screen flex-col bg-cream-100">
+      {/* ---- Top nav ---- */}
+      <header className="no-print sticky top-0 z-30 border-b border-charcoal-100 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex h-16 w-full max-w-[1200px] items-center gap-5 px-4 lg:gap-7 lg:px-8">
+          <Link href="/" className="flex shrink-0 items-center gap-2.5">
+            <LogoMark className="h-6 w-6 text-coral-500" />
+            <span className="headline hidden text-[13px] tracking-[0.05em] sm:block">
+              Win the Week
             </span>
-            <div className="min-w-0">
-              <div className="truncate text-sm font-semibold text-charcoal-800">
-                {state.profile.name}
-              </div>
-              <div className="truncate text-xs text-charcoal-400">
-                {state.profile.churchName}
-              </div>
-            </div>
           </Link>
-        </div>
-      </aside>
 
-      {/* Main */}
-      <div className="flex min-h-screen flex-1 flex-col lg:pl-64">
-        {/* Topbar */}
-        <header className="no-print sticky top-0 z-10 flex items-center justify-between border-b border-charcoal-100 bg-cream-100/80 px-4 py-3 backdrop-blur lg:px-6">
-          <div className="flex items-center gap-2 text-sm text-charcoal-400">
-            <Icon name="calendar" size={16} />
-            <span>
-              Service ·{" "}
-              <span className="font-semibold text-charcoal-800">
-                {fmtDate(activeService.date)}
-              </span>
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* 44px hit area around the 32px avatar (touch target minimum) */}
+          <nav className="hidden h-full items-center gap-1 lg:flex" aria-label="Primary">
+            {NAV.map((item) => {
+              const active = navItemActive(item, pathname);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={`relative flex h-16 items-center px-3 text-[13.5px] font-semibold transition-colors ${
+                    active
+                      ? "text-charcoal-900"
+                      : item.invest
+                        ? "text-teal-600 hover:text-teal-500"
+                        : "text-charcoal-400 hover:text-charcoal-700"
+                  }`}
+                >
+                  {item.label}
+                  {active && (
+                    <span
+                      aria-hidden
+                      className={`absolute inset-x-3 bottom-0 h-0.5 rounded-full ${
+                        item.invest ? "bg-teal-500" : "bg-coral-500"
+                      }`}
+                    />
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="ml-auto flex items-center gap-2.5 lg:gap-3">
+            {/* ⌘K pill */}
+            <button
+              onClick={openPalette}
+              className="hidden items-center gap-2.5 rounded-full border border-charcoal-100 bg-cream-100 py-1.5 pl-3.5 pr-2 text-xs font-medium text-charcoal-400 transition-colors hover:border-charcoal-200 hover:text-charcoal-600 md:flex"
+            >
+              Find or do anything
+              <kbd className="rounded-md border border-charcoal-100 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-charcoal-600">
+                {cmdLabel}
+              </kbd>
+            </button>
+            <button
+              onClick={openPalette}
+              aria-label="Search"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-charcoal-400 hover:bg-cream-200 hover:text-charcoal-700 md:hidden"
+            >
+              <Icon name="search" size={18} />
+            </button>
+
+            {/* Guided / Fast mode */}
+            <div
+              className="hidden items-center rounded-full border border-charcoal-100 p-0.5 lg:flex"
+              role="group"
+              aria-label="Experience mode"
+            >
+              {(["guided", "fast"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  aria-pressed={mode === m}
+                  title={
+                    m === "guided"
+                      ? "Guided: step-by-step with coaching"
+                      : "Fast: one screen, keyboard-first"
+                  }
+                  className={`rounded-full px-3 py-1 text-[11px] font-bold capitalize transition-colors ${
+                    mode === m
+                      ? "bg-charcoal-800 text-white"
+                      : "text-charcoal-400 hover:text-charcoal-700"
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+
+            <div className="hidden lg:block">
+              <ThemeToggle size="sm" />
+            </div>
+
             <Link
               href="/profile"
-              className="-m-1.5 flex h-11 w-11 items-center justify-center lg:hidden"
+              className="flex h-9 w-9 shrink-0 items-center justify-center"
+              aria-label="Profile"
             >
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-charcoal-800 text-xs font-bold text-white dark:bg-coral-500">
                 {initials}
               </span>
             </Link>
           </div>
-        </header>
+        </div>
+      </header>
 
-        {/* Bottom padding on phones = nav height + breathing room + the home
-            indicator safe area, so nothing interactive ever hides under the
-            fixed bottom nav. */}
-        <main className="flex-1 px-4 py-5 pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:px-6 lg:py-6 lg:pb-6">
-          {/* Keyed on the route so content gently rises/fades on each page change. */}
-          <div key={pathname} className="anim-page-in">
-            {children}
-          </div>
-        </main>
-      </div>
+      {/* ---- Content ---- */}
+      <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:px-8 lg:py-9 lg:pb-12">
+        {/* Keyed on the route so content gently rises/fades on each page change. */}
+        <div key={pathname} className="anim-page-in">
+          {children}
+        </div>
+      </main>
 
       {/* Mobile primary nav */}
       <BottomNav />
 
-      {/* Guided coach — persists across pages */}
-      <Coach />
+      {/* ⌘K — mounted once, listens globally */}
+      <CommandPalette />
+
+      {/* Guided coach — only in Guided mode; Fast mode means no hand-holding */}
+      {mode === "guided" && <Coach />}
 
       {/* First-run product tour — keyed so replay remounts it fresh */}
       <Tour key={state.onboarded ? "done" : "run"} />

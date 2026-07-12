@@ -20,6 +20,10 @@ export interface Profile {
   // when on (default), creating a new service opens the step-by-step setup;
   // experienced leaders can switch it off and drop straight into the plan.
   guidedSetup?: boolean;
+  // V2 experience mode. Guided walks each week step by step with coaching;
+  // Fast is one-screen, keyboard-first, no hand-holding. Absent = derive from
+  // guidedSetup (see profileMode in lib/mode.ts).
+  mode?: "guided" | "fast";
 }
 
 // ---- Chord chart (built-in, transposable) ----

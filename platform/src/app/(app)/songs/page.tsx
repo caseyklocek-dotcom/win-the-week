@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { Card, Label } from "@/components/ui";
 import { EditableText } from "@/components/fields";
@@ -275,9 +276,26 @@ function UseInSetModal({
 }
 
 export default function SongsPage() {
+  // useSearchParams (inside) requires a Suspense boundary for prerendering.
+  return (
+    <Suspense fallback={null}>
+      <SongsPageInner />
+    </Suspense>
+  );
+}
+
+function SongsPageInner() {
   const { state, songLibrary, addLibrarySong, updateLibrarySong, removeLibrarySong } =
     useStore();
   const [q, setQ] = useState("");
+  // ?q= lets the command palette (and any link) land here pre-filtered.
+  // Read reactively — on client-side nav the page can mount before the URL
+  // commits, so a one-shot read misses the param.
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const v = searchParams.get("q");
+    if (v) setQ(v);
+  }, [searchParams]);
   const [openId, setOpenId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [useInSetSong, setUseInSetSong] = useState<LibrarySong | null>(null);

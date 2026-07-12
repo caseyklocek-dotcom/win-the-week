@@ -73,9 +73,9 @@ export default function GrowthPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="headline text-charcoal-900">GROWTH</h1>
+        <h1 className="headline text-charcoal-900">INVEST YOUR WEEK</h1>
         <p className="mt-1 text-sm text-charcoal-400">
-          The long game. See where you stand at a glance, then step into a tool to work on it.
+          The long game. Winning the week frees your time. Investing it builds the bench, the vision, and the mission.
         </p>
       </div>
 
@@ -119,7 +119,7 @@ export default function GrowthPage() {
           </div>
           <div className="mt-5 flex justify-end border-t border-charcoal-100 pt-4">
             <Link
-              href="/growth/compass?view=results"
+              href="/invest/compass?view=results"
               className="inline-flex items-center gap-1.5 text-sm font-semibold text-teal-600 hover:underline"
             >
               See full breakdown
@@ -138,7 +138,7 @@ export default function GrowthPage() {
               </p>
             </div>
             <Link
-              href="/growth/compass"
+              href="/invest/compass"
               className="inline-flex items-center gap-2 rounded-lg bg-teal-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-600"
             >
               <Icon name="compass" size={16} /> Start the Compass
@@ -150,7 +150,7 @@ export default function GrowthPage() {
       {/* ── The tools — pick one to step into ──────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-3">
         <ToolTile
-          href={latest ? "/growth/compass?view=results" : "/growth/compass"}
+          href={latest ? "/invest/compass?view=results" : "/invest/compass"}
           icon="compass"
           title="Compass"
           desc="An honest read on 8 areas of your leadership."
@@ -165,9 +165,9 @@ export default function GrowthPage() {
         </ToolTile>
 
         <ToolTile
-          href="/growth/leaders"
+          href="/invest/leaders"
           icon="users"
-          title="Leader Track"
+          title="Leaders On Deck"
           desc="Raise someone from watching to being sent."
         >
           {leaders.length > 0 ? (
@@ -188,7 +188,7 @@ export default function GrowthPage() {
         </ToolTile>
 
         <ToolTile
-          href="/growth/goals"
+          href="/invest/goals"
           icon="target"
           title="Quarterly Goals"
           desc="Concrete steps you check off as you go."
