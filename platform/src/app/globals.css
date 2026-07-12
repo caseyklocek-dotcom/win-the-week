@@ -1,0 +1,444 @@
+@import "tailwindcss";
+
+/* Class-based dark mode: `dark:` utilities apply when <html> has .dark */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================================
+   WIN THE WEEK PLATFORM — Design Tokens (Tailwind v4)
+   Source of truth: Win the Week Design System
+   ============================================================ */
+
+@theme {
+  /* Coral — primary brand. The work of THIS Sunday. */
+  --color-coral-600: #e85a4d;
+  --color-coral-500: #ff6b5e;
+  --color-coral-400: #ff8c82;
+  --color-coral-300: #ffb3ac;
+  --color-coral-200: #ffd4cf;
+  --color-coral-100: #fff0ef;
+  --color-coral-50: #fff6f5;
+
+  /* Teal — secondary accent. The long game: growth, the Compass, goals,
+     the people you're raising up. Deliberately deeper and cooler than the
+     retired bright teal so it complements coral instead of competing, and
+     stays clear of the success-green used for "confirmed / done". Scope it
+     to the Growth side of the app only. */
+  --color-teal-600: #1b6b73;
+  --color-teal-500: #2a8d9c;
+  --color-teal-400: #5bb3bf;
+  --color-teal-300: #9fd4db;
+  --color-teal-200: #c9e7ea;
+  --color-teal-100: #e3f3f4;
+  --color-teal-50: #f0f9fa;
+
+  /* Charcoal / navy neutrals */
+  --color-charcoal-900: #1a1a1a;
+  --color-charcoal-800: #2e2e2e;
+  --color-charcoal-700: #3a3a3a;
+  --color-charcoal-600: #4a4a4a;
+  --color-charcoal-400: #767676;
+  --color-charcoal-200: #b0aca6;
+  --color-charcoal-100: #e5e0d8;
+
+  /* Warm neutrals */
+  --color-cream-200: #f5f0e8;
+  --color-cream-100: #faf7f2;
+  --color-cream-50: #fdfbf8;
+
+  /* Status */
+  --color-success: #3d9970;
+  --color-warning: #e8952a;
+  --color-error: #e05a5a;
+
+  /* ----------------------------------------------------------
+     Semantic status palette — used by every status chip, tile,
+     pill, bar, and dot in the app. Each set has a soft TINT
+     background, a readable INK foreground, a saturated BAR for
+     progress fills, and a BORDER for outlined chips. These are
+     remapped in .dark below so contrast holds in both themes.
+     ok  = good / confirmed / strength
+     wait = in-between / awaiting / developing
+     no  = needs attention / open / error
+     ---------------------------------------------------------- */
+  --color-ok-tint: #e7f4ee;
+  --color-ok-ink: #2f7d5b;
+  --color-ok-bar: #3d9970;
+  --color-ok-border: #bfe3d0;
+
+  --color-wait-tint: #fdf1e3;
+  --color-wait-ink: #b9711d;
+  --color-wait-bar: #e8952a;
+  --color-wait-border: #f0d9b8;
+
+  --color-no-tint: #fbe9e9;
+  --color-no-ink: #c0453f;
+  --color-no-bar: #e05a5a;
+  --color-no-border: #f0c5c2;
+
+  /* Fonts */
+  --font-sans: var(--font-inter), "Inter", system-ui, sans-serif;
+  --font-display: var(--font-inter), "Inter", system-ui, sans-serif;
+  --font-editorial: var(--font-playfair), "Playfair Display", serif;
+  --font-caption: var(--font-open-sans), "Open Sans", sans-serif;
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --shadow-coral: 0 4px 20px rgba(255, 107, 94, 0.35);
+}
+
+:root {
+  --background: #faf7f2;
+  --foreground: #2e2e2e;
+}
+
+/* ============================================================
+   DARK MODE — remap the color scale.
+   The app uses cream/white for surfaces and charcoal for text/ink,
+   so flipping those tokens themes the whole app. A handful of
+   solid charcoal fills (avatars, primary buttons) carry their own
+   dark: overrides because that token is light here.
+   ============================================================ */
+.dark {
+  /* Surfaces (were light) → dark.
+     Lifted off near-black to a softer warm charcoal so long work
+     sessions are easier on the eyes. Background / card / fill stay
+     ~6-8 steps apart to preserve depth without harsh contrast. */
+  --color-white: #2a2723;       /* cards */
+  --color-cream-100: #1f1d1a;   /* app background */
+  --color-cream-200: #34302a;   /* subtle fills / hover */
+  --color-cream-50: #2f2c27;    /* input fills on cards */
+
+  /* Ink (was dark) → light */
+  --color-charcoal-900: #f6f3ee;
+  --color-charcoal-800: #e9e5dd;
+  --color-charcoal-700: #d6d1c8;
+  --color-charcoal-600: #c4bfb5;
+  --color-charcoal-400: #8d877e;
+  --color-charcoal-200: #4d4943;
+  --color-charcoal-100: #3d3a34; /* borders */
+
+  /* Coral on dark. The tints carry more red (less brown/green) and sit
+     a touch lighter so a selected chip / active nav reads as a warm coral
+     glow rather than muddy maroon. The foreground (coral-600) is brightened
+     here too — it's used as accent TEXT and ICONS everywhere, and a lighter
+     coral pops cleanly against the tints and dark surfaces. coral-500 stays
+     put so solid primary buttons keep their punch. */
+  --color-coral-600: #ff8d7f; /* accent text / icons on dark */
+  --color-coral-200: #743630; /* stronger tint / accent borders */
+  --color-coral-100: #54231d; /* selected chip / active nav fill */
+  --color-coral-50: #3a1c19;  /* subtle hover tint */
+
+  /* Teal on dark — same scheme as coral above: the foreground (teal-600)
+     brightens to a clean cyan for accent text/icons, while the low stops
+     become deep teal fills for chips and bars. teal-500 stays put so solid
+     teal fills (progress bars) keep their punch. */
+  --color-teal-600: #5fc7d4; /* accent text / icons on dark */
+  --color-teal-200: #1d5860; /* stronger tint / accent borders */
+  --color-teal-100: #163a40; /* selected chip / active fill */
+  --color-teal-50: #102a2e;  /* subtle hover tint */
+
+  /* Status palette → darker tints with lighter ink for contrast.
+     Bars stay saturated (they read fine on dark). */
+  --color-ok-tint: #18301f;
+  --color-ok-ink: #6cc296;
+  --color-ok-border: #2c5440;
+
+  --color-wait-tint: #342716;
+  --color-wait-ink: #e0a352;
+  --color-wait-border: #5c4626;
+
+  --color-no-tint: #3a1f1f;
+  --color-no-ink: #ec8079;
+  --color-no-border: #5c3331;
+
+  --background: #1f1d1a;
+  --foreground: #f6f3ee;
+}
+
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Brand label: ALL CAPS, wide tracking */
+.label {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-size: 0.75rem;
+}
+
+.editorial {
+  font-family: var(--font-editorial);
+  font-style: italic;
+}
+
+/* Headlines are ALL CAPS per brand rule */
+.headline {
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+/* ============================================================
+   SERVICES NAV ICON — the logo mark opens into a planning clipboard.
+   At rest: two coral triangles (the Win the Week logo).
+   Active (or hovered): triangles slide apart + fade, clipboard opens in.
+   All transforms are %/scale based so it's resolution-independent.
+   ============================================================ */
+.services-icon .si-tri,
+.services-icon .si-plan {
+  transform-origin: center;
+  transition:
+    transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 0.35s ease;
+}
+.services-icon .si-plan {
+  opacity: 0;
+  transform: scale(0.5);
+}
+
+/* Hover peek — only while closed: triangles part slightly, clipboard hints in */
+.services-icon:not([data-open]):hover .si-tri-top {
+  transform: translate(13%, -13%) rotate(6deg);
+}
+.services-icon:not([data-open]):hover .si-tri-bottom {
+  transform: translate(-13%, 13%) rotate(-6deg);
+}
+.services-icon:not([data-open]):hover .si-plan {
+  opacity: 0.35;
+  transform: scale(0.85);
+}
+
+/* Open — fully split the logo and reveal the clipboard */
+.services-icon[data-open] .si-tri-top {
+  transform: translate(45%, -45%) rotate(14deg);
+  opacity: 0;
+}
+.services-icon[data-open] .si-tri-bottom {
+  transform: translate(-45%, 45%) rotate(-14deg);
+  opacity: 0;
+}
+.services-icon[data-open] .si-plan {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .services-icon .si-tri,
+  .services-icon .si-plan {
+    transition: opacity 0.2s ease;
+  }
+}
+
+/* Thin scrollbars inside app panels */
+.scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll-thin::-webkit-scrollbar-thumb { background: var(--color-charcoal-200); border-radius: 9999px; }
+.scroll-thin::-webkit-scrollbar-track { background: transparent; }
+
+/* No scrollbar at all — for horizontally swipeable rows on phones (tab bars). */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
+/* ---- Mobile bottom sheets: slide up + backdrop fade (~200ms) ----
+   Applied on mount, so sheets glide in instead of popping. Reduced motion
+   users get an instant appearance. */
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.anim-sheet-up { animation: sheet-up 0.22s cubic-bezier(0.32, 0.72, 0, 1); }
+.anim-fade-in { animation: fade-in 0.2s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .anim-sheet-up,
+  .anim-fade-in {
+    animation: none;
+  }
+}
+
+/* ---- Page content entrance ----
+   On each route change the main content rises a few pixels and fades in.
+   Keyed on the pathname in AppShell so it re-triggers per navigation. Kept
+   short and transform/opacity only so it never blocks reading. */
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.anim-page-in { animation: page-in 0.22s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .anim-page-in { animation: none; }
+}
+
+/* Nav pulse: when the active section changes, the matching nav item gives a
+   short, soft coral pulse so the eye lands on where you are (used most during
+   the first-run tour). */
+@keyframes nav-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 107, 94, 0); }
+  30% { box-shadow: 0 0 0 4px rgba(255, 107, 94, 0.28); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 107, 94, 0); }
+}
+.nav-pulse {
+  animation: nav-pulse 1.1s ease-out 2;
+  border-radius: 0.5rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-pulse { animation: none; }
+}
+
+/* ---- Tap / press feedback ----
+   Kills the default grey mobile tap flash and gives every interactive element a
+   clear "I pressed it" cue: buttons push in slightly, links/rows dim. The state
+   holds during a long-press too, so the user always knows they hit something. */
+button,
+a,
+[role="button"],
+label,
+summary,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+button:active:not(:disabled),
+[role="button"]:active:not([aria-disabled="true"]) {
+  transform: scale(0.96);
+  transition: transform 0.06s ease;
+}
+a:active,
+label:active,
+summary:active {
+  opacity: 0.6;
+}
+/* Cards/rows that are clickable opt in with data-press for the same dim cue. */
+[data-press]:active {
+  opacity: 0.6;
+}
+
+/* The single-chart print surface only appears during a per-song print. */
+.single-only {
+  display: none;
+}
+
+/* ---- Print: always light, tidy pages, one chart per sheet ---- */
+@media print {
+  /* Force the LIGHT palette even when the app is in dark mode — printing a
+     dark background wastes ink and reads poorly. */
+  .dark {
+    --color-white: #ffffff;
+    --color-cream-100: #ffffff;
+    --color-cream-200: #f5f0e8;
+    --color-cream-50: #ffffff;
+    --color-charcoal-900: #1a1a1a;
+    --color-charcoal-800: #2e2e2e;
+    --color-charcoal-700: #3a3a3a;
+    --color-charcoal-600: #4a4a4a;
+    --color-charcoal-400: #767676;
+    --color-charcoal-200: #b0aca6;
+    --color-charcoal-100: #e5e0d8;
+    --color-coral-600: #e85a4d;
+    --color-coral-200: #ffd4cf;
+    --color-coral-100: #fff0ef;
+    --color-coral-50: #fff6f5;
+    --color-teal-600: #1b6b73;
+    --color-ok-tint: #e7f4ee;
+    --color-ok-ink: #2f7d5b;
+    --color-ok-border: #bfe3d0;
+    --color-wait-tint: #fdf1e3;
+    --color-wait-ink: #b9711d;
+    --color-wait-border: #f0d9b8;
+    --color-no-tint: #fbe9e9;
+    --color-no-ink: #c0453f;
+    --color-no-border: #f0c5c2;
+    --background: #ffffff;
+    --foreground: #2e2e2e;
+  }
+  html,
+  html.dark {
+    color-scheme: light;
+  }
+  html,
+  body {
+    background: #ffffff !important;
+  }
+  /* Plain white sheet: drop the app's cream canvas (and any cream panels) so a
+     printed chart is just white with the page margins — no card/frame effect. */
+  .bg-cream-50,
+  .bg-cream-100,
+  .bg-cream-200 {
+    background: #ffffff !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+
+  @page {
+    margin: 1in;
+  }
+
+  /* Flatten on-screen card chrome so printed pages are clean. */
+  .print-page {
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  /* Each chart (and any second+ packet page) starts on a fresh sheet. */
+  .print-page + .print-page {
+    break-before: page;
+  }
+  /* Keep logical blocks from splitting awkwardly across sheets. */
+  .packet-block {
+    break-inside: avoid;
+  }
+  /* Force the two-column chart layout in print. On-screen this is `md:columns-2`,
+     but a printed page is narrower than the `md` breakpoint, so the responsive
+     class drops out — pin it here so a 2-column chart prints in 2 columns. */
+  .chart-cols-2 {
+    column-count: 2 !important;
+    column-gap: 2rem !important;
+    /* In paged media `column-fill` defaults to `auto`, which fills column one to
+       full page height before using column two — so a short chart looks like one
+       column. Force balanced fill so both columns are used. */
+    column-fill: balance !important;
+  }
+  /* "Print order of service" prints only the order sheet; the per-song "Print"
+     prints only that one chart — each isolated, so songs never spill together. */
+  .print-service .single-only {
+    display: none !important;
+  }
+  .print-single .service-only {
+    display: none !important;
+  }
+  .print-single .single-only {
+    display: block !important;
+  }
+  h1,
+  h2,
+  h3,
+  .label {
+    break-after: avoid;
+  }
+}

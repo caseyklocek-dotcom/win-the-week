@@ -1,0 +1,410 @@
+"use client";
+
+import { useRef, useState } from "react";
+import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
+import { Card, Label } from "@/components/ui";
+import { EditableText } from "@/components/fields";
+import { Icon } from "@/components/Icon";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { PLAN_META, trialDaysLeft } from "@/lib/plan";
+import type { PlanTier, Profile } from "@/lib/types";
+
+// Move an item within an array from one index to another.
+function reorder<T>(arr: T[], from: number, to: number): T[] {
+  const next = [...arr];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+}
+
+const ALL_CARDS: { id: string; label: string }[] = [
+  { id: "nextSunday", label: "Upcoming service" },
+  { id: "progress", label: "Pray · Plan · Prep" },
+  { id: "team", label: "Team this Sunday" },
+  { id: "set", label: "The set" },
+  { id: "capacity", label: "Your capacity" },
+  { id: "goals", label: "Quarterly goals" },
+];
+
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+export default function ProfilePage() {
+  const { state, setState, resetDemo, resetFresh, setOnboarded } = useStore();
+  const auth = useAuth();
+  const profile = state.profile;
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const patchProfile = (fields: Partial<Profile>) =>
+    setState((s) => ({ ...s, profile: { ...s.profile, ...fields } }));
+
+  const initials = profile.name
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("");
+
+  const onPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => patchProfile({ photo: reader.result as string });
+    reader.readAsDataURL(file);
+  };
+
+  // Dashboard cards: enabled (in order) + the rest disabled
+  const enabled = (profile.dashboardCards?.length
+    ? profile.dashboardCards
+    : ALL_CARDS.map((c) => c.id)
+  ).filter((id) => ALL_CARDS.some((c) => c.id === id));
+  const disabled = ALL_CARDS.map((c) => c.id).filter((id) => !enabled.includes(id));
+
+  const setCards = (next: string[]) => patchProfile({ dashboardCards: next });
+
+  const toggleCard = (id: string) =>
+    enabled.includes(id)
+      ? setCards(enabled.filter((x) => x !== id))
+      : setCards([...enabled, id]);
+
+  const labelFor = (id: string) => ALL_CARDS.find((c) => c.id === id)?.label ?? id;
+
+  // ---- drag-and-drop reordering ----
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overIdx, setOverIdx] = useState<number | null>(null);
+
+  const onDrop = (to: number) => {
+    if (dragIdx !== null && dragIdx !== to) setCards(reorder(enabled, dragIdx, to));
+    setDragIdx(null);
+    setOverIdx(null);
+  };
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      <div>
+        <h1 className="headline text-charcoal-900">YOUR PROFILE</h1>
+        <p className="mt-1 text-sm text-charcoal-400">
+          Your details, church, service rhythm, and how your dashboard is arranged.
+        </p>
+      </div>
+
+      {/* Identity */}
+      <Card data-tour="profile">
+        <Label>You</Label>
+        <div className="mt-4 flex items-start gap-5">
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-charcoal-800 text-xl font-bold text-white dark:bg-coral-500">
+              {profile.photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={profile.photo} alt="" className="h-full w-full object-cover" />
+              ) : (
+                initials
+              )}
+            </div>
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="text-xs font-semibold text-coral-600 hover:underline"
+            >
+              {profile.photo ? "Change" : "Add photo"}
+            </button>
+            {profile.photo && (
+              <button
+                onClick={() => patchProfile({ photo: null })}
+                className="text-xs text-charcoal-400 hover:text-error"
+              >
+                Remove
+              </button>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              onChange={onPhoto}
+              className="hidden"
+            />
+          </div>
+
+          <div className="grid flex-1 gap-3 sm:grid-cols-2">
+            <Field label="Name">
+              <EditableText value={profile.name} onCommit={(v) => patchProfile({ name: v })} />
+            </Field>
+            <Field label="Role">
+              <EditableText value={profile.role} onCommit={(v) => patchProfile({ role: v })} />
+            </Field>
+            <div className="sm:col-span-2">
+              <Field label="Church">
+                <EditableText
+                  value={profile.churchName}
+                  onCommit={(v) => patchProfile({ churchName: v })}
+                />
+              </Field>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Service rhythm */}
+      <Card>
+        <Label>Service rhythm</Label>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <Field label="Service day">
+            <select
+              value={profile.serviceDay}
+              onChange={(e) => patchProfile({ serviceDay: e.target.value })}
+              className="w-full rounded-lg border border-charcoal-100 bg-cream-100 px-3 py-2 text-sm font-semibold text-charcoal-800 outline-none focus:border-coral-400"
+            >
+              {DAYS.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Service time">
+            <EditableText
+              value={profile.serviceTime}
+              onCommit={(v) => patchProfile({ serviceTime: v })}
+              placeholder="10:00am"
+            />
+          </Field>
+          <Field label="Timezone">
+            <EditableText
+              value={profile.timezone}
+              onCommit={(v) => patchProfile({ timezone: v })}
+              placeholder="America/Chicago"
+            />
+          </Field>
+        </div>
+      </Card>
+
+      {/* Dashboard customization */}
+      <Card>
+        <Label>Dashboard layout</Label>
+        <p className="mt-1 text-xs text-charcoal-400">
+          Choose which cards show on your dashboard. Drag the handle to reorder them.
+        </p>
+
+        <div className="mt-4 space-y-2">
+          {enabled.map((id, idx) => {
+            const isOver = overIdx === idx && dragIdx !== null && dragIdx !== idx;
+            const isDragging = dragIdx === idx;
+            return (
+              <div
+                key={id}
+                draggable
+                onDragStart={(e) => {
+                  setDragIdx(idx);
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setOverIdx(idx);
+                }}
+                onDrop={() => onDrop(idx)}
+                onDragEnd={() => {
+                  setDragIdx(null);
+                  setOverIdx(null);
+                }}
+                className={`flex items-center gap-3 rounded-lg border bg-cream-100 px-3 py-2.5 transition ${
+                  isOver
+                    ? "border-coral-400 ring-1 ring-coral-300"
+                    : "border-charcoal-100"
+                } ${isDragging ? "opacity-50" : ""}`}
+              >
+                <span className="cursor-grab text-charcoal-300 active:cursor-grabbing" title="Drag to reorder">
+                  <Icon name="grip" size={16} />
+                </span>
+                <span className="flex-1 text-sm font-semibold text-charcoal-800">
+                  {labelFor(id)}
+                </span>
+                <button
+                  onClick={() => toggleCard(id)}
+                  className="text-xs font-semibold text-charcoal-400 hover:text-error"
+                >
+                  Hide
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {disabled.length > 0 && (
+          <div className="mt-4">
+            <div className="label mb-2 text-charcoal-400">Hidden</div>
+            <div className="flex flex-wrap gap-2">
+              {disabled.map((id) => (
+                <button
+                  key={id}
+                  onClick={() => toggleCard(id)}
+                  className="flex items-center gap-1.5 rounded-lg border border-dashed border-charcoal-200 px-3 py-1.5 text-xs font-semibold text-charcoal-500 transition hover:border-coral-400 hover:text-coral-600"
+                >
+                  <Icon name="plus" size={13} /> {labelFor(id)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* Guided setup */}
+      <Card>
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <Label>Guided setup</Label>
+            <p className="mt-1 text-xs text-charcoal-400">
+              Walk through each step when you set up a new Sunday. Turn it off to drop
+              straight into the plan.
+            </p>
+          </div>
+          {(() => {
+            const on = profile.guidedSetup ?? true;
+            return (
+              <button
+                onClick={() => patchProfile({ guidedSetup: !on })}
+                role="switch"
+                aria-checked={on}
+                title={on ? "Guided setup is on" : "Guided setup is off"}
+                className={`relative h-6 w-11 shrink-0 rounded-full transition ${on ? "bg-coral-500" : "bg-charcoal-200"}`}
+              >
+                <span
+                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${on ? "left-[1.375rem]" : "left-0.5"}`}
+                />
+              </button>
+            );
+          })()}
+        </div>
+      </Card>
+
+      {/* Appearance */}
+      <Card>
+        <Label>Appearance</Label>
+        <p className="mt-1 text-xs text-charcoal-400">
+          Light, dark, or follow your device. Your choice is saved on this device.
+        </p>
+        <div className="mt-3">
+          <ThemeToggle />
+        </div>
+      </Card>
+
+      {/* Plan */}
+      <PlanCard
+        tier={state.plan?.tier ?? "beta"}
+        daysLeft={trialDaysLeft(state.plan)}
+        onSwitch={(tier) =>
+          setState((s) => ({ ...s, plan: { ...(s.plan ?? { tier }), tier } }))
+        }
+      />
+
+      {/* Account */}
+      {auth.enabled && auth.user && (
+        <Card>
+          <Label>Account</Label>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-charcoal-700">
+              Signed in as <span className="font-semibold">{auth.user.email}</span>
+            </p>
+            <button
+              onClick={() => auth.signOut()}
+              className="rounded-lg border border-charcoal-200 px-3 py-2 text-sm font-semibold text-charcoal-600 transition hover:border-charcoal-300"
+            >
+              Sign out
+            </button>
+          </div>
+        </Card>
+      )}
+
+      {/* Beta controls */}
+      <Card>
+        <Label>Beta &amp; data</Label>
+        <p className="mt-1 text-xs text-charcoal-400">
+          This is a free beta. Everything you change is saved in this browser only.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            onClick={() => setOnboarded(false)}
+            className="rounded-lg border border-charcoal-200 px-3 py-2 text-sm font-semibold text-charcoal-600 transition hover:border-coral-400 hover:text-coral-600"
+          >
+            Replay the tour
+          </button>
+          <button
+            onClick={() => {
+              if (confirm("Start fresh? This clears everything in this browser and gives you a clean, empty Sunday.")) resetFresh();
+            }}
+            className="rounded-lg border border-charcoal-200 px-3 py-2 text-sm font-semibold text-charcoal-600 transition hover:border-error hover:text-error"
+          >
+            Start fresh (clear my data)
+          </button>
+          <button
+            onClick={() => {
+              if (confirm("Load the sample data? This replaces what's in this browser with an example church to explore.")) resetDemo();
+            }}
+            className="rounded-lg border border-charcoal-200 px-3 py-2 text-sm font-semibold text-charcoal-600 transition hover:border-charcoal-300"
+          >
+            Load sample data
+          </button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// Current plan + switch. During the free beta the switch is honor-system and
+// instant; Stripe enforcement replaces these buttons when billing goes live.
+function PlanCard({
+  tier,
+  daysLeft,
+  onSwitch,
+}: {
+  tier: PlanTier;
+  daysLeft: number | null;
+  onSwitch: (tier: PlanTier) => void;
+}) {
+  const meta = PLAN_META[tier];
+  return (
+    <Card>
+      <Label>Plan</Label>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm text-charcoal-700">
+            You&rsquo;re on <span className="font-semibold">{meta.name}</span>
+            <span className="text-charcoal-400"> · {meta.price}</span>
+            {daysLeft !== null && (
+              <span className="text-charcoal-400"> · {daysLeft} trial days left</span>
+            )}
+          </p>
+          <p className="mt-1 text-xs text-charcoal-400">{meta.blurb}</p>
+        </div>
+        {tier === "base" && (
+          <button
+            onClick={() => onSwitch("advanced")}
+            className="rounded-lg bg-teal-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-600"
+          >
+            Upgrade to Advanced
+          </button>
+        )}
+        {tier === "advanced" && (
+          <button
+            onClick={() => onSwitch("base")}
+            className="rounded-lg border border-charcoal-200 px-3 py-2 text-sm font-semibold text-charcoal-600 transition hover:border-charcoal-300"
+          >
+            Switch to Base
+          </button>
+        )}
+      </div>
+      {tier !== "beta" && (
+        <p className="mt-2 text-xs text-charcoal-400">
+          Nothing is billed during the free beta. Billing begins when the beta ends, and early
+          accounts keep a founder rate.
+        </p>
+      )}
+    </Card>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      <div className="mt-1">{children}</div>
+    </div>
+  );
+}

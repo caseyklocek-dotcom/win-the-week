@@ -1,0 +1,135 @@
+// ============================================================
+// Song Library — the reusable catalog that sits behind every set.
+//
+// Model: a set still stores its own Song copies (so per-Sunday key, flow, and
+// lead live with the service). Each copy carries a libraryId back to the
+// catalog record. Catalog fields (title, artist, chart, links...) sync from the
+// set back to the library; per-service fields do not.
+// ============================================================
+
+import type { AppState, LibrarySong, Song } from "./types";
+
+function id(p: string) {
+  return p + "-" + Math.random().toString(36).slice(2, 9);
+}
+
+// Fields shared between a Song and its LibrarySong record. Note: "flow" is
+// per-service and maps to "defaultFlow" on the library, so it is NOT here.
+const CATALOG_KEYS = [
+  "title",
+  "artist",
+  "originalKey",
+  "durationSec",
+  "chartSource",
+  "chart",
+  "pdfName",
+  "multitracksUrl",
+  "songSelectUrl",
+  "ccli",
+  "notes",
+] as const;
+
+export function dedupeKey(title: string, artist: string): string {
+  return title.trim().toLowerCase() + "|" + artist.trim().toLowerCase();
+}
+
+// Catalog record built from an existing set song.
+export function librarySongFromSong(song: Song): LibrarySong {
+  return {
+    id: id("lib"),
+    title: song.title,
+    artist: song.artist,
+    originalKey: song.originalKey,
+    durationSec: song.durationSec,
+    defaultFlow: song.flow,
+    chartSource: song.chartSource,
+    chart: song.chart,
+    pdfName: song.pdfName,
+    multitracksUrl: song.multitracksUrl,
+    songSelectUrl: song.songSelectUrl,
+    ccli: song.ccli,
+    notes: song.notes,
+  };
+}
+
+// Fresh set copy pulled from a catalog record. Sunday key defaults to the
+// chart's original key; lead is left open for this service.
+export function songFromLibrary(lib: LibrarySong): Song {
+  return {
+    id: id("song"),
+    libraryId: lib.id,
+    title: lib.title,
+    artist: lib.artist,
+    originalKey: lib.originalKey,
+    serviceKey: lib.originalKey,
+    durationSec: lib.durationSec,
+    flow: lib.defaultFlow || "Adoration",
+    leadName: "",
+    chartSource: lib.chartSource,
+    chart: lib.chart,
+    pdfName: lib.pdfName,
+    pdfPath: lib.pdfPath,
+    multitracksUrl: lib.multitracksUrl,
+    songSelectUrl: lib.songSelectUrl,
+    ccli: lib.ccli,
+    notes: lib.notes,
+  };
+}
+
+export function blankLibrarySong(): LibrarySong {
+  return {
+    id: id("lib"),
+    title: "New song",
+    artist: "",
+    originalKey: "C",
+    durationSec: 240,
+    defaultFlow: "Adoration",
+    chartSource: "none",
+  };
+}
+
+// Pull the catalog-relevant subset out of a Song patch, so a set edit can be
+// mirrored to the library record.
+export function catalogPatchFromSong(fields: Partial<Song>): Partial<LibrarySong> {
+  const out: Partial<LibrarySong> = {};
+  for (const k of CATALOG_KEYS) {
+    if (k in fields) {
+      // keys line up 1:1 between Song and LibrarySong for this subset
+      (out as Record<string, unknown>)[k] = (fields as Record<string, unknown>)[k];
+    }
+  }
+  return out;
+}
+
+// Lazy migration: derive a song library from every service's songs (de-duped by
+// title + artist) and stamp each set song with its libraryId. Idempotent — once
+// songLibrary exists it returns the state untouched. Used both for existing
+// local data and for seeding fresh installs.
+export function migrateLibrary(state: AppState): AppState {
+  if (state.songLibrary) return state;
+
+  const byKey = new Map<string, LibrarySong>();
+  const library: LibrarySong[] = [];
+
+  for (const svc of state.services) {
+    for (const song of svc.songs) {
+      const key = dedupeKey(song.title, song.artist);
+      if (!byKey.has(key)) {
+        const lib = librarySongFromSong(song);
+        byKey.set(key, lib);
+        library.push(lib);
+      }
+    }
+  }
+
+  const services = state.services.map((svc) => ({
+    ...svc,
+    songs: svc.songs.map((song) => ({
+      ...song,
+      libraryId:
+        song.libraryId ?? byKey.get(dedupeKey(song.title, song.artist))?.id,
+    })),
+  }));
+
+  return { ...state, songLibrary: library, services };
+}
