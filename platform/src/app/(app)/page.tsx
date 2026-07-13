@@ -316,18 +316,25 @@ export default function Dashboard() {
             >
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-coral-400" /> Go live
             </Link>
-          ) : (
-            doneCount < 3 && (
-              // ONE way in — the mode decides the method. Guided walks the
-              // coached loop; Fast opens the 15-minute plan.
-              <Link
-                href={profileMode(state.profile) === "fast" ? "/quick" : "/plan?tab=pray"}
-                className="hidden items-center gap-1.5 rounded-full bg-coral-500 px-4 py-2 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition-colors hover:bg-coral-600 sm:flex"
-              >
-                <Icon name="sparkle" size={15} /> Plan this service
-              </Link>
-            )
-          )}
+          ) : doneCount < 3 ? (
+            // ONE way in — the mode decides the method. Guided walks the
+            // coached loop; Fast opens the 15-minute plan.
+            <Link
+              href={profileMode(state.profile) === "fast" ? "/quick" : "/plan?tab=pray"}
+              className="hidden items-center gap-1.5 rounded-full bg-coral-500 px-4 py-2 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition-colors hover:bg-coral-600 sm:flex"
+            >
+              <Icon name="sparkle" size={15} /> Plan this service
+            </Link>
+          ) : allSongs.length > 0 ? (
+            // Plan's done and it isn't service day yet — the natural next move is
+            // to run the set (rehearsal or a preview). Live was hidden here before.
+            <Link
+              href="/live"
+              className="hidden items-center gap-1.5 rounded-full bg-charcoal-800 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-charcoal-900 sm:flex"
+            >
+              <Icon name="music" size={15} /> Run it live
+            </Link>
+          ) : null}
           <Link
             href="/profile"
             className="hidden items-center gap-1.5 rounded-full border border-charcoal-100 px-3.5 py-2 text-sm font-semibold text-charcoal-600 transition hover:border-charcoal-200 sm:flex"
@@ -551,6 +558,16 @@ export default function Dashboard() {
                   Same team as last week
                 </Link>
               </>
+            )}
+            {/* Live is always one tap from home whenever there's a set to run —
+                rehearsal, a preview, or Sunday morning. */}
+            {allSongs.length > 0 && (
+              <Link
+                href="/live"
+                className="flex items-center justify-center gap-2 text-sm font-semibold text-charcoal-500 transition-colors hover:text-coral-600"
+              >
+                <Icon name="music" size={14} /> Run it live
+              </Link>
             )}
           </div>
           {show("capacity") && svc.capacity.note && (
