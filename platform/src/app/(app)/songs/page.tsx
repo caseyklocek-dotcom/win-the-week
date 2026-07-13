@@ -441,17 +441,28 @@ function LibraryRow({
 }) {
   const meta = CHART_META[lib.chartSource];
   return (
-    <div className="border-b border-cream-200">
-      <div className="flex items-center gap-3 py-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-coral-100 text-coral-600">
+    <div>
+      {/* Whole row is the target — hover tints it, the chevron shows the state.
+          The editor below is a SIBLING (never nested in this button). */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className={`group flex w-full items-center gap-3 border-b border-cream-200 py-3 pl-2 pr-1 text-left transition-colors active:scale-100 ${
+          open ? "bg-cream-200/50" : "hover:bg-cream-200/50"
+        }`}
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-coral-100 text-coral-600 transition-colors group-hover:bg-coral-200/70">
           <Icon name="music" size={18} />
         </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-charcoal-800">{lib.title}</span>
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-charcoal-800 transition-colors group-hover:text-coral-700">
+              {lib.title}
+            </span>
             {lib.artist && <span className="text-xs text-charcoal-400">{lib.artist}</span>}
-          </div>
-          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-charcoal-400">
+          </span>
+          <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-charcoal-400">
             <span>Key {lib.originalKey}</span>
             <span>·</span>
             <span>{fmtDuration(lib.durationSec)}</span>
@@ -467,24 +478,25 @@ function LibraryRow({
             <span>
               {uses > 0 ? `In ${uses} service${uses === 1 ? "" : "s"}` : "Not scheduled"}
             </span>
-          </div>
-        </div>
+          </span>
+        </span>
         <span
           className={`hidden rounded-full px-2.5 py-0.5 text-xs font-semibold sm:inline ${meta.tone}`}
         >
           {meta.label}
         </span>
-        <button
-          onClick={onToggle}
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-charcoal-500 transition hover:bg-cream-200 hover:text-charcoal-800"
-        >
+        <span className="flex shrink-0 items-center gap-1 pr-1 text-xs font-semibold text-charcoal-400 transition-colors group-hover:text-coral-600">
           {open ? "Close" : "Edit"}
-          <Icon name="chevronDown" size={14} className={open ? "rotate-180" : ""} />
-        </button>
-      </div>
+          <Icon
+            name="chevronDown"
+            size={14}
+            className={`transition-transform ${open ? "rotate-180" : ""}`}
+          />
+        </span>
+      </button>
 
       {open && (
-        <div className="space-y-4 border-t border-charcoal-100 p-4">
+        <div className="anim-page-in space-y-4 border-b border-cream-200 p-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Title">
               <EditableText value={lib.title} onCommit={(v) => onUpdate({ title: v })} />

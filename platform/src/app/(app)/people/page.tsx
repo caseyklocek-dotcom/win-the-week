@@ -276,10 +276,18 @@ function PersonRow({
   onRemove: () => void;
 }) {
   return (
-    <div className="border-b border-cream-200">
-      <div className="flex items-center gap-3 py-3">
+    <div>
+      {/* Whole row toggles the editor; the editor below is a SIBLING. */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className={`group flex w-full items-center gap-3 border-b border-cream-200 py-3 pl-2 pr-1 text-left transition-colors active:scale-100 ${
+          open ? "bg-cream-200/50" : "hover:bg-cream-200/50"
+        }`}
+      >
         <span
-          className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold ${
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
             person.active
               ? "bg-charcoal-800 text-white dark:bg-coral-500"
               : "bg-cream-200 text-charcoal-400"
@@ -287,9 +295,9 @@ function PersonRow({
         >
           {initials(person.name) || "?"}
         </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-charcoal-800">
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-charcoal-800 transition-colors group-hover:text-coral-700">
               {person.name}
             </span>
             {!person.active && (
@@ -297,8 +305,8 @@ function PersonRow({
                 Inactive
               </span>
             )}
-          </div>
-          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-charcoal-400">
+          </span>
+          <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-charcoal-400">
             <span className="inline-flex items-center gap-1">
               {person.mainRole && (
                 <Icon name="star" size={11} className="text-coral-500" />
@@ -316,19 +324,20 @@ function PersonRow({
             <span>
               {uses > 0 ? `In ${uses} service${uses === 1 ? "" : "s"}` : "Not scheduled"}
             </span>
-          </div>
-        </div>
-        <button
-          onClick={onToggle}
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-charcoal-500 transition hover:bg-cream-200 hover:text-charcoal-800"
-        >
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-1 pr-1 text-xs font-semibold text-charcoal-400 transition-colors group-hover:text-coral-600">
           {open ? "Close" : "Edit"}
-          <Icon name="chevronDown" size={14} className={open ? "rotate-180" : ""} />
-        </button>
-      </div>
+          <Icon
+            name="chevronDown"
+            size={14}
+            className={`transition-transform ${open ? "rotate-180" : ""}`}
+          />
+        </span>
+      </button>
 
       {open && (
-        <div className="space-y-4 pb-4 pl-12">
+        <div className="anim-page-in space-y-4 border-b border-cream-200 pb-4 pl-12 pr-2 pt-3">
           {/* Everything commits as you go — no Save button to remember. */}
           <Field label="Name">
             <EditableText value={person.name} onCommit={(v) => onUpdate({ name: v })} />
