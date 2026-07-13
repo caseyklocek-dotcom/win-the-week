@@ -252,7 +252,7 @@ export default function SundayLivePage() {
         )}
 
         {/* the gentle close */}
-        {doneAll && (
+        {doneAll && rows.length > 0 && (
           <div className="mt-14">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8d877e]">
               That&rsquo;s the service
