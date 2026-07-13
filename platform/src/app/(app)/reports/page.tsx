@@ -23,6 +23,7 @@ import { planTimeSec } from "@/lib/plan";
 import { pcsMode } from "@/lib/mode";
 import { buildServicesIcs, downloadIcs } from "@/lib/ics";
 import { dedupeKey, blankLibrarySong } from "@/lib/library";
+import { PlanningCenterGuide } from "@/components/PlanningCenterGuide";
 import { ALL_KEYS } from "@/lib/music";
 import type { Service } from "@/lib/types";
 
@@ -537,6 +538,10 @@ export default function ReportsPage() {
           {importNote && (
             <p className="mt-2 text-xs font-semibold text-teal-600">{importNote}</p>
           )}
+          {/* Visual how-it-works for Planning Center leaders — same file picker. */}
+          <div className="mt-3">
+            <PlanningCenterGuide onChooseFile={() => importRef.current?.click()} />
+          </div>
         </div>
       </div>
 
