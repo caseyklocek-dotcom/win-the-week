@@ -11,6 +11,7 @@ const TABS = [
   { href: "/set", label: "Set" },
   { href: "/team", label: "Team" },
   { href: "/rehearse", label: "Rehearse" },
+  { href: "/send", label: "Send" },
   { href: "/packet", label: "Packet" },
 ];
 

@@ -4,8 +4,17 @@ import { use, useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { ChartSheet } from "@/components/ChartSheet";
 import { ALL_KEYS, fmtDuration } from "@/lib/music";
-import { readPacket, readResponse, recordResponse } from "@/lib/packets";
+import {
+  PRACTICE_STEPS,
+  markPacketOpened,
+  readPacket,
+  readResponse,
+  recordResponse,
+  saveNote,
+  savePractice,
+} from "@/lib/packets";
 import type { ServicePacket, PacketResponse } from "@/lib/packets";
+import { buildServiceIcs, downloadIcs } from "@/lib/ics";
 import type { Song, ChartDisplay } from "@/lib/types";
 
 function fmtDate(iso: string) {
@@ -39,6 +48,8 @@ export default function VolunteerPacketPage({
       setPacket(p);
       setResponse(r);
       setLoading(false);
+      // "Seen" ping — fire-and-forget, first open only (server keeps the min).
+      if (p) markPacketOpened(token);
     })();
     return () => {
       cancelled = true;
@@ -85,6 +96,22 @@ function PacketView({
   const [chartCfg, setChartCfg] = useState<Record<string, ChartCfg>>({});
   const [declineOpen, setDeclineOpen] = useState(false);
   const [reason, setReason] = useState("");
+
+  // Practice checklist + note — optimistic, persisted through the transport.
+  const [practice, setPractice] = useState<string[]>(response?.practice ?? []);
+  const togglePractice = (id: string) => {
+    const next = practice.includes(id) ? practice.filter((p) => p !== id) : [...practice, id];
+    setPractice(next);
+    savePractice(packet.token, next).then(onRespond);
+  };
+  const [note, setNote] = useState("");
+  const [noteSaved, setNoteSaved] = useState(false);
+  const sendNote = async () => {
+    if (!note.trim()) return;
+    onRespond(await saveNote(packet.token, note));
+    setNoteSaved(true);
+    setTimeout(() => setNoteSaved(false), 2500);
+  };
 
   const cfgFor = (s: Song): ChartCfg =>
     chartCfg[s.id] ?? {
@@ -237,6 +264,24 @@ function PacketView({
             </div>
           )}
 
+          {/* On the calendar in one tap — service + assignment, local time */}
+          <button
+            onClick={() =>
+              downloadIcs(
+                `sunday-${packet.service.date}`,
+                buildServiceIcs({
+                  dateIso: packet.service.date,
+                  serviceTime: packet.service.serviceTime,
+                  title: `${packet.churchName} · ${packet.person.assignment}`,
+                  description: packet.service.title || undefined,
+                }),
+              )
+            }
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-charcoal-200 px-4 py-2.5 text-sm font-semibold text-charcoal-600 transition hover:border-coral-400 hover:text-coral-600"
+          >
+            <Icon name="calendar" size={15} /> Add to my calendar
+          </button>
+
           {status === "declined" && (
             <div className="mt-4 rounded-xl bg-no-tint px-4 py-3">
               <div className="flex items-center justify-between">
@@ -294,6 +339,69 @@ function PacketView({
                 withCfg={withCfg}
               />
             ))}
+          </div>
+        </div>
+
+        {/* Get Sunday-ready — light practice loop that reports back */}
+        <div className="mt-6 rounded-2xl bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <div className="label text-teal-600">Get Sunday-ready</div>
+          <div className="mt-2 space-y-1">
+            {PRACTICE_STEPS.map((step) => {
+              const checked = practice.includes(step.id);
+              return (
+                <button
+                  key={step.id}
+                  onClick={() => togglePractice(step.id)}
+                  className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition hover:bg-cream-100"
+                >
+                  <span
+                    className={`flex h-6 w-6 items-center justify-center rounded-full transition ${
+                      checked
+                        ? "bg-ok-bar text-white"
+                        : "border-2 border-dashed border-charcoal-200"
+                    }`}
+                  >
+                    {checked && <Icon name="check" size={13} strokeWidth={2.6} />}
+                  </span>
+                  <span
+                    className={`text-sm font-semibold ${
+                      checked ? "text-charcoal-400 line-through" : "text-charcoal-800"
+                    }`}
+                  >
+                    {step.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {practice.length === PRACTICE_STEPS.length && (
+            <p className="mt-2 px-2 text-xs font-semibold text-ok-ink">
+              Ready. {packet.leaderName.split(" ")[0]} can see it — see you Sunday.
+            </p>
+          )}
+        </div>
+
+        {/* A word back to the leader, anytime */}
+        <div className="mt-3 rounded-2xl bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <div className="label text-charcoal-400">
+            A note for {packet.leaderName.split(" ")[0]}
+          </div>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={2}
+            placeholder="Question about a song, a heads-up, an encouragement…"
+            className="mt-2 w-full resize-none rounded-lg border border-charcoal-200 bg-cream-50 px-3 py-2 text-sm text-charcoal-800 outline-none focus:border-coral-400"
+          />
+          <div className="mt-2 flex items-center justify-end gap-3">
+            {noteSaved && <span className="text-xs font-semibold text-ok-ink">Sent ✓</span>}
+            <button
+              onClick={sendNote}
+              disabled={!note.trim()}
+              className="rounded-xl bg-charcoal-800 px-4 py-2 text-xs font-bold text-white transition hover:bg-charcoal-900 disabled:opacity-50"
+            >
+              Send note
+            </button>
           </div>
         </div>
 

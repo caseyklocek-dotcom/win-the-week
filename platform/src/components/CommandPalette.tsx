@@ -53,6 +53,7 @@ const ROUTES: { href: string; label: string; icon: string; keywords: string; hin
   { href: "/set", label: "Worship set", icon: "music", keywords: "set songs order setlist build" },
   { href: "/team", label: "Team for this Sunday", icon: "users", keywords: "team roster assign roles fill" },
   { href: "/rehearse", label: "Rehearsal", icon: "check", keywords: "rehearse rehearsal practice run" },
+  { href: "/send", label: "Send the week", icon: "users", keywords: "send comms links packets team text nudge confirm" },
   { href: "/packet", label: "Service packet", icon: "printer", keywords: "packet print pdf charts export send" },
   { href: "/calendar", label: "Calendar & runway", icon: "calendar", keywords: "calendar runway weeks 8 four three two one schedule" },
   { href: "/songs", label: "Song library", icon: "music", keywords: "songs library catalog music charts" },

@@ -287,6 +287,9 @@ export interface Service {
   watchFor: string;
   carryForward: string;
   rehearsal?: RehearsalPlan; // guided rehearsal run-sheet (lazily created)
+  // Published packet per person (personId or a name key) for THIS service —
+  // powers the Send board: who got a link, when, and lets responses resolve.
+  sentPackets?: Record<string, { token: string; sentAt: string; personName: string }>;
 }
 
 // ---- Rehearsal Planner (per service) ----

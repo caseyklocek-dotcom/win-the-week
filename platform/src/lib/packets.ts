@@ -6,16 +6,19 @@
 // note, and a way to confirm or decline. Each packet is reached by an
 // unguessable token in a link the leader texts them — no account, no login.
 //
-// PROTOTYPE: localStorage phase. Packets and responses are stored per-browser
-// so the whole flow is clickable on one device before the Supabase backend
-// exists. The transport is a thin async adapter (publish / read / respond) so
-// the move to a shared backend — public read by token, anon write for a
-// confirm/decline — is a data-source swap, not a rewrite. See the SAME pattern
-// note in community.ts.
+// Transport: Supabase when configured (real cross-device links — run
+// supabase/packets.sql once to create the tables and RPCs), localStorage
+// otherwise (single-browser dev/demo). Every method is async so the UI never
+// changes when the backend swaps.
+//
+// The volunteer's side writes back more than yes/no now: opened-at, a
+// practice checklist, and a free note to the leader — that's what powers the
+// leader's Send board.
 // ============================================================
 
 import type { Service, Person, Profile, Song } from "./types";
 import { sectionSongIds } from "./set";
+import { supabase } from "./supabase";
 
 // The set's songs in running order (flattened across sections), skipping any
 // referenced song that no longer exists.
@@ -30,11 +33,22 @@ function orderedSongs(service: Service): Song[] {
 // A volunteer either says yes or no. "pending" is the absence of a response.
 export type PacketReplyStatus = "confirmed" | "declined";
 
+// The three light practice steps a volunteer can check off. Kept as ids so
+// the labels can be tuned without migrating data.
+export const PRACTICE_STEPS = [
+  { id: "listened", label: "Listened through the set" },
+  { id: "charts", label: "Ran my charts" },
+  { id: "prayed", label: "Prayed for Sunday" },
+] as const;
+
 export interface PacketResponse {
   token: string;
-  status: PacketReplyStatus;
+  status?: PacketReplyStatus;
   reason?: string; // optional "why" captured on a decline
-  respondedAt: string; // ISO
+  note?: string; // free message back to the leader
+  practice?: string[]; // checked PRACTICE_STEPS ids
+  openedAt?: string; // ISO — first time the volunteer opened the link
+  respondedAt?: string; // ISO
 }
 
 // A song as the volunteer receives it — a snapshot, so later edits to the
@@ -114,8 +128,7 @@ export function buildPacket(
 }
 
 // ============================================================
-// Transport adapter. localStorage today; Supabase later. Every method is async
-// so the UI never has to change when the backend lands.
+// Transport. Supabase when configured; localStorage otherwise.
 // ============================================================
 
 const PACKET_KEY = "wtw_packets_v1"; // token -> ServicePacket
@@ -139,8 +152,52 @@ function writeMap<T>(key: string, map: Record<string, T>) {
   }
 }
 
+// Merge a partial response into whatever is stored for the token (local mode).
+function mergeLocalResponse(token: string, fields: Partial<PacketResponse>): PacketResponse {
+  const map = readMap<PacketResponse>(RESPONSE_KEY);
+  const merged: PacketResponse = { ...(map[token] ?? { token }), ...fields, token };
+  map[token] = merged;
+  writeMap(RESPONSE_KEY, map);
+  return merged;
+}
+
+type ResponseRow = {
+  token: string;
+  status: PacketReplyStatus | null;
+  reason: string | null;
+  note: string | null;
+  practice: string[] | null;
+  opened_at: string | null;
+  responded_at: string | null;
+};
+
+function rowToResponse(row: ResponseRow): PacketResponse {
+  return {
+    token: row.token,
+    status: row.status ?? undefined,
+    reason: row.reason ?? undefined,
+    note: row.note ?? undefined,
+    practice: row.practice ?? undefined,
+    openedAt: row.opened_at ?? undefined,
+    respondedAt: row.responded_at ?? undefined,
+  };
+}
+
 // Leader side: publish one person's packet. Returns the link path to text.
 export async function publishPacket(packet: ServicePacket): Promise<string> {
+  if (supabase) {
+    const { data } = await supabase.auth.getUser();
+    const uid = data.user?.id;
+    if (uid) {
+      const { error } = await supabase.from("packets").upsert({
+        token: packet.token,
+        owner: uid,
+        payload: packet,
+      });
+      if (!error) return packetPath(packet.token);
+    }
+    // fall through to local so the demo still works when signed out
+  }
   const map = readMap<ServicePacket>(PACKET_KEY);
   map[packet.token] = packet;
   writeMap(PACKET_KEY, map);
@@ -149,8 +206,22 @@ export async function publishPacket(packet: ServicePacket): Promise<string> {
 
 // Volunteer side: load a packet by token (null if it doesn't exist).
 export async function readPacket(token: string): Promise<ServicePacket | null> {
+  if (supabase) {
+    const { data, error } = await supabase.rpc("get_packet", { p_token: token });
+    if (!error && data) return data as ServicePacket;
+  }
   const map = readMap<ServicePacket>(PACKET_KEY);
   return map[token] ?? null;
+}
+
+// Volunteer side: first-open ping so the leader can see "seen".
+export async function markPacketOpened(token: string): Promise<void> {
+  if (supabase) {
+    const { error } = await supabase.rpc("packet_mark_opened", { p_token: token });
+    if (!error) return;
+  }
+  const existing = readMap<PacketResponse>(RESPONSE_KEY)[token];
+  if (!existing?.openedAt) mergeLocalResponse(token, { openedAt: new Date().toISOString() });
 }
 
 // Volunteer side: record a confirm/decline, then return the saved response.
@@ -159,28 +230,63 @@ export async function recordResponse(
   status: PacketReplyStatus,
   reason?: string,
 ): Promise<PacketResponse> {
-  const map = readMap<PacketResponse>(RESPONSE_KEY);
-  const response: PacketResponse = {
-    token,
-    status,
-    reason: reason?.trim() || undefined,
-    respondedAt: new Date().toISOString(),
-  };
-  map[token] = response;
-  writeMap(RESPONSE_KEY, map);
-  return response;
+  const respondedAt = new Date().toISOString();
+  if (supabase) {
+    const { data, error } = await supabase.rpc("packet_respond", {
+      p_token: token,
+      p_status: status,
+      p_reason: reason?.trim() || null,
+    });
+    if (!error && data) return rowToResponse(data as ResponseRow);
+  }
+  return mergeLocalResponse(token, { status, reason: reason?.trim() || undefined, respondedAt });
 }
 
-// Either side: read the response for one packet (null = still pending).
+// Volunteer side: practice checklist + free note back to the leader.
+export async function savePractice(token: string, practice: string[]): Promise<PacketResponse> {
+  if (supabase) {
+    const { data, error } = await supabase.rpc("packet_practice", {
+      p_token: token,
+      p_practice: practice,
+    });
+    if (!error && data) return rowToResponse(data as ResponseRow);
+  }
+  return mergeLocalResponse(token, { practice });
+}
+
+export async function saveNote(token: string, note: string): Promise<PacketResponse> {
+  if (supabase) {
+    const { data, error } = await supabase.rpc("packet_note", {
+      p_token: token,
+      p_note: note.trim() || null,
+    });
+    if (!error && data) return rowToResponse(data as ResponseRow);
+  }
+  return mergeLocalResponse(token, { note: note.trim() || undefined });
+}
+
+// Either side: read the response for one packet (null = nothing yet).
 export async function readResponse(token: string): Promise<PacketResponse | null> {
-  const map = readMap<PacketResponse>(RESPONSE_KEY);
-  return map[token] ?? null;
+  const all = await readResponses([token]);
+  return all[token] ?? null;
 }
 
-// Leader side: read responses for a batch of tokens at once (for the dashboard).
+// Leader side: read responses for a batch of tokens at once (for the board).
 export async function readResponses(
   tokens: string[],
 ): Promise<Record<string, PacketResponse>> {
+  if (tokens.length === 0) return {};
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("packet_responses")
+      .select("*")
+      .in("token", tokens);
+    if (!error && data) {
+      const out: Record<string, PacketResponse> = {};
+      for (const row of data as ResponseRow[]) out[row.token] = rowToResponse(row);
+      return out;
+    }
+  }
   const map = readMap<PacketResponse>(RESPONSE_KEY);
   const out: Record<string, PacketResponse> = {};
   for (const t of tokens) if (map[t]) out[t] = map[t];
