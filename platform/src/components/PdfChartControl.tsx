@@ -3,17 +3,23 @@
 import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { Icon } from "./Icon";
 import { uploadChartPdf, chartPdfUrl, removeChartPdf } from "@/lib/storage";
-import { parseChartFromFile, parseChartFromPath } from "@/lib/parseChart";
+import {
+  CHART_FILE_ACCEPT,
+  parseChartFromFile,
+  parseChartFromPath,
+  type ParsedMeta,
+} from "@/lib/parseChart";
 import type { ChartSection, ChartSettings, ChartSource } from "@/lib/types";
 
-// Upload / view / replace a PDF chord chart (stored in Supabase Storage), and
+// Upload / view / replace a chord chart — a PDF or a photo/screenshot — and
 // auto-convert it into an editable chart by reading it with AI. Works for both
 // library songs and per-service songs — it only needs an id for the storage
 // path and a callback to save the resulting fields.
 //
-// On a successful drop we: store the original PDF, read it, and (if it parses)
-// hand back an editable chart with chartSource "builtin". If reading fails we
-// silently keep it as a plain PDF — nothing breaks.
+// On a successful drop we: store the original file (best effort — parsing
+// still runs if storage isn't available), read it, and hand back an editable
+// chart plus every detail printed on the page (meta) so the caller can fill
+// empty song fields. If reading fails we keep the file as-is — nothing breaks.
 
 type ChartFields = {
   pdfPath?: string;
@@ -21,6 +27,7 @@ type ChartFields = {
   chart?: { sections: ChartSection[]; settings: ChartSettings };
   chartSource?: ChartSource;
   originalKey?: string;
+  meta?: ParsedMeta; // what the reader saw — callers fill EMPTY fields only
 };
 
 export function PdfChartControl({
@@ -47,35 +54,47 @@ export function PdfChartControl({
     setErr(null);
     setNote(null);
 
-    // 1) Store the original PDF so the source is always recoverable.
+    // 1) Store the original file so the source is recoverable — best effort.
+    //    Parsing still runs when storage is unavailable (local mode, offline).
     setPhase("uploading");
     const up = await uploadChartPdf(songId, file);
-    if (!up.ok) {
-      setPhase("idle");
-      setErr(up.error);
-      return;
-    }
 
     // 2) Read it into an editable chart.
     setPhase("reading");
     const parsed = await parseChartFromFile(file);
     setPhase("idle");
 
+    const stored = up.ok ? { pdfPath: up.path, pdfName: up.name } : {};
     if (parsed.ok) {
       // The parsed chords are concrete in the key we detected, so set the song's
       // "written in" key to match — otherwise the chart gets re-transposed.
-      const detected = parsed.data.meta.originalKey;
+      const meta = parsed.data.meta;
       onChange({
-        pdfPath: up.path,
-        pdfName: up.name,
+        ...stored,
         chart: parsed.data.chart,
         chartSource: "builtin",
-        ...(detected ? { originalKey: detected } : {}),
+        ...(meta.originalKey ? { originalKey: meta.originalKey } : {}),
+        meta,
       });
+      const read = [
+        meta.title,
+        meta.originalKey && `key ${meta.originalKey}`,
+        meta.tempo && `${meta.tempo} bpm`,
+        meta.ccli && `CCLI ${meta.ccli}`,
+        meta.themes.length > 0 && meta.themes.join(", "),
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      setNote(
+        `Read from the chart: ${read || "sections and chords"}. Details fill in automatically — worth a quick check.`,
+      );
+      if (!up.ok) setErr(null); // parse succeeded; a missed archive isn't an error
+    } else if (up.ok) {
+      // Keep it as a plain file; let the leader convert later if they want.
+      onChange(stored);
+      setNote("Saved the file. Couldn't auto-convert it to an editable chart. You can try again.");
     } else {
-      // Keep it as a plain PDF; let the leader convert later if they want.
-      onChange({ pdfPath: up.path, pdfName: up.name });
-      setNote("Saved as a PDF. Couldn't auto-convert it to an editable chart. You can try again.");
+      setErr(up.error || parsed.error);
     }
   };
 
@@ -87,11 +106,12 @@ export function PdfChartControl({
     const parsed = await parseChartFromPath(pdfPath);
     setPhase("idle");
     if (parsed.ok) {
-      const detected = parsed.data.meta.originalKey;
+      const meta = parsed.data.meta;
       onChange({
         chart: parsed.data.chart,
         chartSource: "builtin",
-        ...(detected ? { originalKey: detected } : {}),
+        ...(meta.originalKey ? { originalKey: meta.originalKey } : {}),
+        meta,
       });
     } else {
       setNote(parsed.error);
@@ -129,7 +149,7 @@ export function PdfChartControl({
       <input
         ref={fileRef}
         type="file"
-        accept="application/pdf,.pdf"
+        accept={CHART_FILE_ACCEPT}
         onChange={onFile}
         className="hidden"
       />
@@ -195,12 +215,12 @@ export function PdfChartControl({
             disabled={busy}
             className="inline-flex items-center gap-1.5 rounded-lg bg-coral-500 px-3 py-1.5 text-sm font-semibold text-white shadow-[var(--shadow-coral)] transition hover:bg-coral-600 disabled:opacity-60"
           >
-            <Icon name="upload" size={14} /> {busy ? readingLabel : "Choose a PDF"}
+            <Icon name="upload" size={14} /> {busy ? readingLabel : "Choose a file"}
           </button>
           <p className="text-xs text-charcoal-400">
             {busy
               ? "Hang tight. Turning it into an editable chart."
-              : "Drop a PDF and we'll turn it into an editable chart."}
+              : "Drop a PDF, photo, or screenshot — it becomes an editable chart, details filled in."}
           </p>
         </div>
       )}

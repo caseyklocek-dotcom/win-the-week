@@ -130,8 +130,14 @@ function SundaySheet({
 }
 
 export default function QuickPlanPage() {
-  const { state, activeService: svc, updateService, teamTemplates, applyTeamTemplate } =
-    useStore();
+  const {
+    state,
+    activeService: svc,
+    updateService,
+    teamTemplates,
+    applyTeamTemplate,
+    songLibrary,
+  } = useStore();
   const mode = profileMode(state.profile);
 
   // ---- where the week actually is → statuses + a sensible starting step ----
@@ -185,7 +191,7 @@ export default function QuickPlanPage() {
 
   // Add into the first "Worship"-ish section (or create one).
   const addFromLibrary = (libId: string) => {
-    const lib = state.songLibrary.find((l) => l.id === libId);
+    const lib = songLibrary.find((l) => l.id === libId);
     if (!lib) return;
     const newSong = songFromLibrary(lib);
     patch((s) => {
@@ -246,11 +252,11 @@ export default function QuickPlanPage() {
     const term = q.trim().toLowerCase();
     if (!term) return [];
     const inSet = new Set(songs.map((s) => s.libraryId));
-    return state.songLibrary
+    return songLibrary
       .filter((l) => !inSet.has(l.id))
       .filter((l) => `${l.title} ${l.artist}`.toLowerCase().includes(term))
       .slice(0, 5);
-  }, [q, state.songLibrary, songs]);
+  }, [q, songLibrary, songs]);
 
   const totalSec = serviceSetDurationSec(svc);
   const timerPct = Math.min(100, (elapsed / TARGET_SEC) * 100);

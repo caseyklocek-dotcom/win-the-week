@@ -13,6 +13,7 @@ import {
   blankLibrarySong,
   catalogPatchFromSong,
   songFromLibrary,
+  songPatchFromParsedMeta,
 } from "@/lib/library";
 import {
   blankElement,
@@ -756,7 +757,12 @@ function SongCard({
                 songId={song.id}
                 pdfPath={song.pdfPath}
                 pdfName={song.pdfName}
-                onChange={(f) => onUpdate(f)}
+                onChange={({ meta, ...chartFields }) =>
+                  onUpdate({
+                    ...chartFields,
+                    ...(meta ? songPatchFromParsedMeta(song, meta) : {}),
+                  })
+                }
               />
             )}
             {song.chartSource === "builtin" && (

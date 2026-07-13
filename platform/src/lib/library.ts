@@ -8,6 +8,7 @@
 // ============================================================
 
 import type { AppState, LibrarySong, Song } from "./types";
+import type { ParsedMeta } from "./parseChart";
 
 function id(p: string) {
   return p + "-" + Math.random().toString(36).slice(2, 9);
@@ -27,6 +28,8 @@ const CATALOG_KEYS = [
   "songSelectUrl",
   "ccli",
   "notes",
+  "tempo",
+  "timeSignature",
 ] as const;
 
 export function dedupeKey(title: string, artist: string): string {
@@ -85,6 +88,60 @@ export function blankLibrarySong(): LibrarySong {
     durationSec: 240,
     defaultFlow: "Adoration",
     chartSource: "none",
+  };
+}
+
+// Merge what the chart reader saw into a library record. Fills ONLY fields the
+// leader hasn't set — imported details never overwrite real data.
+export function libraryPatchFromParsedMeta(
+  lib: LibrarySong,
+  meta: ParsedMeta,
+): Partial<LibrarySong> {
+  const patch: Partial<LibrarySong> = {};
+  const titleUnset = !lib.title.trim() || lib.title === "New song";
+  if (meta.title && titleUnset) patch.title = meta.title;
+  if (meta.artist && !lib.artist.trim()) patch.artist = meta.artist;
+  if (meta.tempo && !lib.tempo) patch.tempo = meta.tempo;
+  if (meta.timeSignature && !lib.timeSignature) patch.timeSignature = meta.timeSignature;
+  if (meta.ccli && !lib.ccli) patch.ccli = meta.ccli;
+  if (meta.themes.length > 0) {
+    const merged = [...new Set([...(lib.tags ?? []), ...meta.themes])];
+    if (merged.length !== (lib.tags?.length ?? 0)) patch.tags = merged;
+  }
+  return patch;
+}
+
+// Same idea for a per-service Song copy (no tags on Song).
+export function songPatchFromParsedMeta(song: Song, meta: ParsedMeta): Partial<Song> {
+  const patch: Partial<Song> = {};
+  const titleUnset = !song.title.trim() || song.title === "New song";
+  if (meta.title && titleUnset) patch.title = meta.title;
+  if (meta.artist && !song.artist.trim()) patch.artist = meta.artist;
+  if (meta.tempo && !song.tempo) patch.tempo = meta.tempo;
+  if (meta.timeSignature && !song.timeSignature) patch.timeSignature = meta.timeSignature;
+  if (meta.ccli && !song.ccli) patch.ccli = meta.ccli;
+  return patch;
+}
+
+// A complete library record built from one parsed import — the batch-drop path.
+export function librarySongFromParsed(parsed: {
+  chart: LibrarySong["chart"];
+  meta: ParsedMeta;
+}): LibrarySong {
+  const { chart, meta } = parsed;
+  return {
+    id: id("lib"),
+    title: meta.title ?? "Imported song",
+    artist: meta.artist ?? "",
+    originalKey: meta.originalKey ?? chart?.settings.key ?? "C",
+    durationSec: 240,
+    defaultFlow: meta.suggestedFlow ?? "Adoration",
+    chartSource: "builtin",
+    chart,
+    ccli: meta.ccli ?? undefined,
+    tags: meta.themes.length ? meta.themes : undefined,
+    tempo: meta.tempo ?? undefined,
+    timeSignature: meta.timeSignature ?? undefined,
   };
 }
 

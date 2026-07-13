@@ -71,6 +71,8 @@ export interface Song {
   songSelectUrl?: string;
   ccli?: string;
   notes?: string;
+  tempo?: number; // BPM, usually read off an imported chart
+  timeSignature?: string; // e.g. "4/4", "6/8"
 }
 
 // ---- Song library (reusable catalog) ----
@@ -92,6 +94,8 @@ export interface LibrarySong {
   ccli?: string;
   notes?: string;
   tags?: string[];
+  tempo?: number; // BPM
+  timeSignature?: string; // e.g. "4/4"
 }
 // ---- Element in a set ----
 // A non-song, manually-timed moment in the service: welcome, testimony,

@@ -16,16 +16,24 @@ async function currentUserId(): Promise<string | null> {
   return data.user?.id ?? null;
 }
 
+const CHART_EXT: Record<string, string> = {
+  "application/pdf": "pdf",
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+};
+
 export async function uploadChartPdf(songId: string, file: File): Promise<UploadResult> {
   if (!supabase) return { ok: false, error: "File storage isn't set up yet." };
-  if (file.type !== "application/pdf") return { ok: false, error: "Please choose a PDF file." };
+  const ext = CHART_EXT[file.type];
+  if (!ext) return { ok: false, error: "Use a PDF or an image (PNG, JPG, WebP)." };
   const uid = await currentUserId();
   if (!uid) return { ok: false, error: "You need to be signed in to upload." };
 
-  const path = `${uid}/${songId}-${Date.now()}.pdf`;
+  const path = `${uid}/${songId}-${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
     upsert: true,
-    contentType: "application/pdf",
+    contentType: file.type,
   });
   if (error) return { ok: false, error: error.message };
   return { ok: true, path, name: file.name };

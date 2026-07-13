@@ -8,8 +8,10 @@ import { Card, Label } from "@/components/ui";
 import { EditableText } from "@/components/fields";
 import { Icon } from "@/components/Icon";
 import { PdfChartControl } from "@/components/PdfChartControl";
+import { LibraryImport } from "@/components/LibraryImport";
+import { songLinks } from "@/lib/links";
 import { ALL_KEYS, countLabel, fmtDuration } from "@/lib/music";
-import { blankLibrarySong, songFromLibrary } from "@/lib/library";
+import { blankLibrarySong, libraryPatchFromParsedMeta, songFromLibrary } from "@/lib/library";
 import { sectionSongIds } from "@/lib/set";
 import type { LibrarySong, Service } from "@/lib/types";
 
@@ -384,6 +386,9 @@ function SongsPageInner() {
         </button>
       </div>
 
+      {/* Bring-your-binder import: files or pasted text → complete songs */}
+      <LibraryImport />
+
       {songLibrary.length === 0 ? (
         <Card className="text-center">
           <p className="text-sm text-charcoal-500">
@@ -454,6 +459,12 @@ function LibraryRow({
             <span>{fmtDuration(lib.durationSec)}</span>
             <span>·</span>
             <span>{lib.defaultFlow}</span>
+            {lib.tempo ? (
+              <>
+                <span>·</span>
+                <span>{lib.tempo} bpm</span>
+              </>
+            ) : null}
             <span>·</span>
             <span>
               {uses > 0 ? `In ${uses} service${uses === 1 ? "" : "s"}` : "Not scheduled"}
@@ -566,7 +577,12 @@ function LibraryRow({
                 songId={lib.id}
                 pdfPath={lib.pdfPath}
                 pdfName={lib.pdfName}
-                onChange={(f) => onUpdate(f)}
+                onChange={({ meta, ...chartFields }) =>
+                  onUpdate({
+                    ...chartFields,
+                    ...(meta ? libraryPatchFromParsedMeta(lib, meta) : {}),
+                  })
+                }
               />
             )}
           </Field>
@@ -594,6 +610,23 @@ function LibraryRow({
                 placeholder="https://songselect.ccli.com/..."
               />
             </Field>
+          </div>
+
+          {/* One-tap jumps to where leaders already look songs up. Saved links
+              win; otherwise these are prefilled searches on title + artist. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-charcoal-400">Find it on</span>
+            {songLinks(lib).map((l) => (
+              <a
+                key={l.label}
+                href={l.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-full border border-charcoal-100 px-3 py-1 text-xs font-semibold text-charcoal-600 transition hover:border-coral-300 hover:text-coral-600"
+              >
+                {l.label} <Icon name="link" size={11} />
+              </a>
+            ))}
           </div>
 
           <Field label="Notes">

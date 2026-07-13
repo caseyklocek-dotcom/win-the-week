@@ -2,13 +2,15 @@ import { NextResponse } from "next/server";
 import { ALL_KEYS } from "@/lib/music";
 
 // POST /api/parse-chart
-// Body: { pdfBase64: string, filename?: string }
-// Returns: { chart: { sections, settings }, meta: { title, artist, originalKey } }
+// Body: { fileBase64?: string, mimeType?: string, textContent?: string,
+//         pdfBase64?: string /* legacy alias for fileBase64 as a PDF */ }
+// Returns: { chart: { sections, settings }, meta: { title, artist, originalKey,
+//            tempo, timeSignature, ccli, themes, suggestedFlow } }
 //
-// Reads a dropped chord-chart PDF with an AI model and returns it in the app's
-// editable-chart shape. The model call is isolated in callModel() so the backend
-// (Claude today; an OpenAI-compatible host or local Ollama later) is a one-line
-// swap driven by env vars — no other code changes.
+// Reads a dropped chord chart — PDF, photo/screenshot (png/jpg/webp), or pasted
+// text — with an AI model and returns it in the app's editable-chart shape,
+// plus every song detail printed on the page so the library fills itself in.
+// The model call is isolated in callModel() so the backend is an env-var swap.
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,7 +33,9 @@ const DEFAULT_SETTINGS = {
   color: true,
 };
 
-const PROMPT = `You are converting a worship/song chord chart (provided as a PDF) into structured JSON for a chart editor.
+const FLOWS = ["Opener", "Adoration", "Communion", "Response", "Sending", "Special"];
+
+const PROMPT = `You are converting a worship/song chord chart (provided as a PDF, an image, or pasted text) into structured JSON for a chart editor.
 
 Read the chart and return ONLY a JSON object (no markdown, no commentary) with this exact shape:
 
@@ -39,6 +43,11 @@ Read the chart and return ONLY a JSON object (no markdown, no commentary) with t
   "title": string | null,
   "artist": string | null,
   "originalKey": string | null,
+  "tempo": number | null,
+  "timeSignature": string | null,
+  "ccli": string | null,
+  "themes": string[],
+  "suggestedFlow": string | null,
   "sections": [
     {
       "label": string,        // e.g. "Verse 1", "Chorus", "Bridge", "Intro", "Tag"
@@ -54,6 +63,10 @@ Read the chart and return ONLY a JSON object (no markdown, no commentary) with t
 }
 
 Rules:
+- "tempo" is the BPM if printed on the chart (e.g. "72 BPM", "Tempo: 140"), else null. "timeSignature" like "4/4" or "6/8" if printed, else null.
+- "ccli" is the CCLI song number if printed (digits only, as a string), else null. Never invent one.
+- "themes" is 1 to 4 single lowercase words describing what the lyrics are about (e.g. ["trust","grace"]). Derive from the lyrics on the page.
+- "suggestedFlow" is where this song usually lands in a service, judged from its content and energy. One of: ${FLOWS.join(", ")}. Use null if unsure.
 - "sym" is the chord symbol exactly as written (e.g. "G", "D/F#", "Em7", "Asus4").
 - "pos" is the 0-based CHARACTER INDEX into that line's "lyrics" where the chord sits above. Read the horizontal position of each chord over the words and map it to the closest character. For chord-only lines (no lyrics), set lyrics to "" and space chords out using pos as evenly increasing indices (e.g. 0, 8, 16).
 - Keep the section order as printed. Split repeated sections (Verse 1, Verse 2) into separate sections.
@@ -67,6 +80,11 @@ type RawChart = {
   title?: unknown;
   artist?: unknown;
   originalKey?: unknown;
+  tempo?: unknown;
+  timeSignature?: unknown;
+  ccli?: unknown;
+  themes?: unknown;
+  suggestedFlow?: unknown;
   sections?: unknown;
 };
 
@@ -120,12 +138,35 @@ function normalizeChart(raw: RawChart) {
   const originalKey = normalizeKey(raw.originalKey);
   const settings = { ...DEFAULT_SETTINGS, key: originalKey ?? "C" };
 
+  const tempoNum =
+    typeof raw.tempo === "number" && isFinite(raw.tempo) && raw.tempo >= 30 && raw.tempo <= 300
+      ? Math.round(raw.tempo)
+      : null;
+  const ccliDigits = str(raw.ccli).replace(/\D/g, "");
+  const themes = Array.isArray(raw.themes)
+    ? raw.themes
+        .map((t) => str(t).trim().toLowerCase())
+        .filter((t) => t.length >= 3 && t.length <= 24)
+        .slice(0, 4)
+    : [];
+  const flowRaw = str(raw.suggestedFlow).trim();
+  const suggestedFlow =
+    FLOWS.find((f) => f.toLowerCase() === flowRaw.toLowerCase()) ?? null;
+  const timeSig = /^\d{1,2}\/\d{1,2}$/.test(str(raw.timeSignature).trim())
+    ? str(raw.timeSignature).trim()
+    : null;
+
   return {
     chart: { sections, settings },
     meta: {
       title: str(raw.title) || null,
       artist: str(raw.artist) || null,
       originalKey,
+      tempo: tempoNum,
+      timeSignature: timeSig,
+      ccli: ccliDigits || null,
+      themes,
+      suggestedFlow,
     },
     ok: sections.length > 0,
   };
@@ -150,9 +191,13 @@ function extractJson(text: string): RawChart | null {
 // Returns the model's raw text reply (expected to be JSON). Backend is chosen by
 // CHART_PARSE_PROVIDER so swapping to a local Ollama / other host later is a
 // config change, not a code change.
-async function callModel(pdfBase64: string): Promise<string> {
-  if (PROVIDER === "gemini") return callGemini(pdfBase64);
-  if (PROVIDER === "anthropic") return callAnthropic(pdfBase64);
+type ParseInput =
+  | { kind: "file"; base64: string; mimeType: string }
+  | { kind: "text"; text: string };
+
+async function callModel(input: ParseInput): Promise<string> {
+  if (PROVIDER === "gemini") return callGemini(input);
+  if (PROVIDER === "anthropic") return callAnthropic(input);
   throw new Error(`Unsupported CHART_PARSE_PROVIDER: ${PROVIDER}`);
 }
 
@@ -169,25 +214,25 @@ async function fetchRetry(url: string, init: RequestInit, tries = 4): Promise<Re
   return res as Response;
 }
 
-// Google Gemini — free tier, no card, reads PDFs natively. JSON output is forced
-// via responseMimeType so we get clean machine-readable replies.
-async function callGemini(pdfBase64: string): Promise<string> {
+// Google Gemini — free tier, no card, reads PDFs and images natively. JSON
+// output is forced via responseMimeType so we get clean machine-readable replies.
+async function callGemini(input: ParseInput): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set.");
+  const parts =
+    input.kind === "file"
+      ? [
+          { inline_data: { mime_type: input.mimeType, data: input.base64 } },
+          { text: PROMPT },
+        ]
+      : [{ text: `${PROMPT}\n\nHere is the chart as pasted text:\n\n${input.text}` }];
   const res = await fetchRetry(
     `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
     {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { inline_data: { mime_type: "application/pdf", data: pdfBase64 } },
-              { text: PROMPT },
-            ],
-          },
-        ],
+        contents: [{ parts }],
         generationConfig: {
           responseMimeType: "application/json",
           temperature: 0,
@@ -215,9 +260,24 @@ async function callGemini(pdfBase64: string): Promise<string> {
 }
 
 // Anthropic Claude — paid, kept available behind CHART_PARSE_PROVIDER=anthropic.
-async function callAnthropic(pdfBase64: string): Promise<string> {
+async function callAnthropic(input: ParseInput): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set.");
+  const content =
+    input.kind === "file"
+      ? [
+          input.mimeType === "application/pdf"
+            ? {
+                type: "document",
+                source: { type: "base64", media_type: input.mimeType, data: input.base64 },
+              }
+            : {
+                type: "image",
+                source: { type: "base64", media_type: input.mimeType, data: input.base64 },
+              },
+          { type: "text", text: PROMPT },
+        ]
+      : [{ type: "text", text: `${PROMPT}\n\nHere is the chart as pasted text:\n\n${input.text}` }];
   const res = await fetchRetry("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -228,18 +288,7 @@ async function callAnthropic(pdfBase64: string): Promise<string> {
     body: JSON.stringify({
       model: MODEL,
       max_tokens: 8000,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "document",
-              source: { type: "base64", media_type: "application/pdf", data: pdfBase64 },
-            },
-            { type: "text", text: PROMPT },
-          ],
-        },
-      ],
+      messages: [{ role: "user", content }],
     }),
   });
   if (!res.ok) {
@@ -278,34 +327,62 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
-  let pdfBase64 = "";
+  const ALLOWED_MIME = new Set([
+    "application/pdf",
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+  ]);
+
+  let input: ParseInput | null = null;
   try {
-    const body = (await req.json()) as { pdfBase64?: string };
-    pdfBase64 = (body.pdfBase64 ?? "").replace(/^data:.*;base64,/, "");
+    const body = (await req.json()) as {
+      fileBase64?: string;
+      mimeType?: string;
+      textContent?: string;
+      pdfBase64?: string; // legacy alias
+    };
+    const text = (body.textContent ?? "").trim();
+    const base64 = (body.fileBase64 ?? body.pdfBase64 ?? "").replace(/^data:.*;base64,/, "");
+    if (text) {
+      if (text.length > 40_000) {
+        return NextResponse.json({ error: "That pasted chart is too long." }, { status: 413 });
+      }
+      input = { kind: "text", text };
+    } else if (base64) {
+      const mimeType = body.mimeType ?? "application/pdf";
+      if (!ALLOWED_MIME.has(mimeType)) {
+        return NextResponse.json(
+          { error: "Use a PDF or an image (PNG, JPG, WebP)." },
+          { status: 415 },
+        );
+      }
+      // rough decoded-size guard (base64 is ~4/3 of bytes)
+      if ((base64.length * 3) / 4 > MAX_PDF_BYTES) {
+        return NextResponse.json({ error: "That file is too large to read." }, { status: 413 });
+      }
+      input = { kind: "file", base64, mimeType };
+    }
   } catch {
     return NextResponse.json({ error: "Bad request." }, { status: 400 });
   }
-  if (!pdfBase64) {
-    return NextResponse.json({ error: "No PDF provided." }, { status: 400 });
-  }
-  // rough decoded-size guard (base64 is ~4/3 of bytes)
-  if ((pdfBase64.length * 3) / 4 > MAX_PDF_BYTES) {
-    return NextResponse.json({ error: "That PDF is too large to read." }, { status: 413 });
+  if (!input) {
+    return NextResponse.json({ error: "No chart provided." }, { status: 400 });
   }
 
   try {
-    const reply = await callModel(pdfBase64);
+    const reply = await callModel(input);
     const raw = extractJson(reply);
     if (!raw) {
-      return NextResponse.json({ error: "Couldn't read a chart from that PDF." }, { status: 422 });
+      return NextResponse.json({ error: "Couldn't read a chart from that." }, { status: 422 });
     }
     const result = normalizeChart(raw);
     if (!result.ok) {
-      return NextResponse.json({ error: "No chart sections found in that PDF." }, { status: 422 });
+      return NextResponse.json({ error: "No chart sections found in that." }, { status: 422 });
     }
     return NextResponse.json({ chart: result.chart, meta: result.meta });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Couldn't process that PDF.";
+    const msg = e instanceof Error ? e.message : "Couldn't process that chart.";
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

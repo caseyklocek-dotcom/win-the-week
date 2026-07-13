@@ -69,7 +69,7 @@ export function rankSuggestions(
   const words = themeWords(svc);
 
   const out: SongSuggestion[] = [];
-  for (const lib of state.songLibrary) {
+  for (const lib of state.songLibrary ?? []) {
     if (inSet.has(lib.id)) continue;
 
     const reasons: SongSuggestion["reasons"] = [];

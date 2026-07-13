@@ -2,16 +2,35 @@ import { supabase } from "./supabase";
 import { chartPdfUrl } from "./storage";
 import type { ChartSection, ChartSettings } from "./types";
 
-// Client helper: send a chord-chart PDF to /api/parse-chart and get back an
-// editable chart. Works from a freshly dropped File or from an already-stored
-// pdfPath (it fetches the stored file via a signed URL first).
+// Client helper: send a chord chart — a PDF, a photo/screenshot, or pasted
+// text — to /api/parse-chart and get back an editable chart plus every song
+// detail the model could read off the page (tempo, CCLI, themes, flow).
+
+export type ParsedMeta = {
+  title: string | null;
+  artist: string | null;
+  originalKey: string | null;
+  tempo: number | null;
+  timeSignature: string | null;
+  ccli: string | null;
+  themes: string[];
+  suggestedFlow: string | null;
+};
 
 export type ParsedChart = {
   chart: { sections: ChartSection[]; settings: ChartSettings };
-  meta: { title: string | null; artist: string | null; originalKey: string | null };
+  meta: ParsedMeta;
 };
 
 type ParseResult = { ok: true; data: ParsedChart } | { ok: false; error: string };
+
+export const CHART_FILE_MIMES = [
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+];
+export const CHART_FILE_ACCEPT = "application/pdf,.pdf,image/png,image/jpeg,image/webp";
 
 function bufferToBase64(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf);
@@ -34,7 +53,11 @@ async function pathToBase64(pdfPath: string): Promise<string | null> {
   return bufferToBase64(buf);
 }
 
-async function post(pdfBase64: string): Promise<ParseResult> {
+async function post(body: {
+  fileBase64?: string;
+  mimeType?: string;
+  textContent?: string;
+}): Promise<ParseResult> {
   const token = supabase ? (await supabase.auth.getSession()).data.session?.access_token : undefined;
   let res: Response;
   try {
@@ -44,26 +67,33 @@ async function post(pdfBase64: string): Promise<ParseResult> {
         "content-type": "application/json",
         ...(token ? { authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ pdfBase64 }),
+      body: JSON.stringify(body),
     });
   } catch {
     return { ok: false, error: "Couldn't reach the chart reader." };
   }
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    return { ok: false, error: body.error ?? "Couldn't read that chart." };
+    const errBody = (await res.json().catch(() => ({}))) as { error?: string };
+    return { ok: false, error: errBody.error ?? "Couldn't read that chart." };
   }
   const data = (await res.json()) as ParsedChart;
   return { ok: true, data };
 }
 
 export async function parseChartFromFile(file: File): Promise<ParseResult> {
-  if (file.type !== "application/pdf") return { ok: false, error: "Please choose a PDF file." };
-  return post(await fileToBase64(file));
+  if (!CHART_FILE_MIMES.includes(file.type)) {
+    return { ok: false, error: "Use a PDF or an image (PNG, JPG, WebP)." };
+  }
+  return post({ fileBase64: await fileToBase64(file), mimeType: file.type });
 }
 
 export async function parseChartFromPath(pdfPath: string): Promise<ParseResult> {
   const b64 = await pathToBase64(pdfPath);
   if (!b64) return { ok: false, error: "Couldn't open the stored PDF." };
-  return post(b64);
+  return post({ fileBase64: b64, mimeType: "application/pdf" });
+}
+
+export async function parseChartFromText(text: string): Promise<ParseResult> {
+  if (!text.trim()) return { ok: false, error: "Paste the chart text first." };
+  return post({ textContent: text });
 }
