@@ -299,13 +299,22 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-3">
           <ServiceSwitcher />
-          {doneCount < 3 && (
+          {daysUntil(svc.date) === 0 ? (
             <Link
-              href="/quick"
-              className="hidden items-center gap-1.5 rounded-full bg-coral-500 px-4 py-2 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition-colors hover:bg-coral-600 sm:flex"
+              href="/live"
+              className="flex items-center gap-1.5 rounded-full bg-charcoal-800 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-charcoal-900"
             >
-              <Icon name="sparkle" size={15} /> 15-Minute Plan
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-coral-400" /> Go live
             </Link>
+          ) : (
+            doneCount < 3 && (
+              <Link
+                href="/quick"
+                className="hidden items-center gap-1.5 rounded-full bg-coral-500 px-4 py-2 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition-colors hover:bg-coral-600 sm:flex"
+              >
+                <Icon name="sparkle" size={15} /> 15-Minute Plan
+              </Link>
+            )
           )}
           <Link
             href="/profile"
