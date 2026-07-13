@@ -136,7 +136,7 @@ export default function CalendarPage() {
           emails, meetings, and sessions out on time every week.
         </p>
 
-        <div data-coach="runway" data-tour="runway" className="mt-5 overflow-hidden rounded-2xl border border-charcoal-100 bg-white">
+        <div data-coach="runway" data-tour="runway" className="mt-6 border-t border-charcoal-100">
           {!RUNWAY.some((stage) => services[stage.weeksOut]) && (
             <div className="px-5 py-8 text-center">
               <p className="text-sm font-semibold text-charcoal-700">
@@ -150,7 +150,7 @@ export default function CalendarPage() {
                   setAdding(true);
                   setCalendarOpen(true);
                 }}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-coral-500 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_4px_20px_rgba(255,107,94,0.3)] transition hover:bg-coral-600"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-coral-500 px-4 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition hover:bg-coral-600"
               >
                 <Icon name="plus" size={16} /> Plan a service
               </button>
@@ -162,7 +162,7 @@ export default function CalendarPage() {
             return (
               <div
                 key={stage.weeksOut}
-                className="flex flex-wrap items-center gap-5 border-b border-charcoal-100 px-5 py-4 last:border-b-0"
+                className="flex flex-wrap items-center gap-5 border-b border-cream-200 py-5"
               >
                 <div className="w-28 shrink-0">
                   <div className="text-3xl font-bold leading-none text-charcoal-900">
@@ -191,11 +191,11 @@ export default function CalendarPage() {
           })}
         </div>
 
-        <div className="mt-5 rounded-xl border border-charcoal-100 bg-cream-100 px-5 py-4 text-sm text-charcoal-600">
-          <span className="font-semibold text-charcoal-800">Coming soon:</span> the planning
+        <p className="mt-5 border-l-2 border-teal-300 pl-4 text-sm text-charcoal-500">
+          <span className="font-semibold text-charcoal-700">Coming soon:</span> the planning
           assistant will drive this runway for you, firing each reminder and drafting the emails
           on schedule so the cadence happens whether or not you remember it.
-        </div>
+        </p>
       </section>
 
       {/* ---------- Upcoming services (collapsed by default) ---------- */}
@@ -221,14 +221,14 @@ export default function CalendarPage() {
               setAdding((v) => !v);
               setCalendarOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-coral-500 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_4px_20px_rgba(255,107,94,0.3)] transition hover:bg-coral-600"
+            className="inline-flex items-center gap-1.5 rounded-full bg-coral-500 px-4 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition hover:bg-coral-600"
           >
             <Icon name="plus" size={16} /> Plan a service
           </button>
         </div>
 
         {adding && (
-          <div className="mt-4 rounded-xl border border-coral-200 bg-coral-50/50 p-4">
+          <div className="mt-4 border-l-2 border-coral-400 py-1 pl-4">
             <div className="flex flex-wrap items-end gap-4">
               <div>
                 <div className="label mb-1 text-charcoal-400">Service date</div>
@@ -274,14 +274,14 @@ export default function CalendarPage() {
               Every service in one view. The pills show how far Pray, Plan, and Prep have come for
               each week. Pick any week to open its plan and start editing.
             </p>
-            <div className="mt-4 overflow-hidden rounded-2xl border border-charcoal-100 bg-white">
+            <div className="mt-4 border-t border-charcoal-100">
               {services.slice(0, 8).map((svc) => {
                 const active = svc.id === activeService.id;
                 return (
                   <div
                     key={svc.id}
-                    className={`group flex flex-wrap items-center gap-4 border-b border-charcoal-100 px-5 py-4 transition last:border-b-0 ${
-                      active ? "bg-coral-50/60" : "hover:bg-cream-100"
+                    className={`group flex flex-wrap items-center gap-4 border-b border-cream-200 px-2 py-4 transition ${
+                      active ? "bg-coral-50/60" : "hover:bg-cream-200/50"
                     }`}
                   >
                     <button
@@ -336,7 +336,7 @@ function StagePill({
   const styles: Record<PrepStatus, string> = {
     done: "bg-ok-tint text-ok-ink border-transparent",
     doing: "bg-coral-500 text-white border-transparent shadow-[0_2px_10px_rgba(255,107,94,0.35)]",
-    todo: "bg-white text-charcoal-400 border-charcoal-200",
+    todo: "bg-transparent text-charcoal-400 border-charcoal-200",
   };
   return (
     <button
@@ -366,7 +366,7 @@ function MilestoneChip({
   const ring: Record<PrepStatus, string> = {
     done: "border-ok-border bg-ok-tint",
     doing: "border-wait-border bg-wait-tint",
-    todo: "border-charcoal-200 bg-white",
+    todo: "border-charcoal-200 bg-transparent",
   };
   return (
     <button

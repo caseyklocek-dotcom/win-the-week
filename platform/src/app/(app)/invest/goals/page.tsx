@@ -102,7 +102,7 @@ export default function GoalsPage() {
           const doneCount = ms.filter((m) => m.done).length;
           const isCollapsed = !expanded.has(g.id);
           return (
-            <Card key={g.id}>
+            <div key={g.id} className="border-b border-cream-200 py-5">
               <div className="flex items-start justify-between gap-3">
                 <button
                   onClick={() => toggleCollapse(g.id)}
@@ -228,15 +228,15 @@ export default function GoalsPage() {
                   </button>
                 </div>
               ))}
-            </Card>
+            </div>
           );
         })}
         {state.goals.length === 0 && (
-          <Card>
+          <div className="border-t border-charcoal-100 pt-5">
             <p className="text-sm text-charcoal-400">
               No goals yet. Take the Compass to turn a weak area into a goal, or add one below.
             </p>
-          </Card>
+          </div>
         )}
       </div>
 

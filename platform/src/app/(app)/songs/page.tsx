@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
-import { Card, Label } from "@/components/ui";
+import { Label } from "@/components/ui";
 import { EditableText } from "@/components/fields";
 import { Icon } from "@/components/Icon";
 import { PdfChartControl } from "@/components/PdfChartControl";
@@ -390,18 +390,16 @@ function SongsPageInner() {
       <LibraryImport />
 
       {songLibrary.length === 0 ? (
-        <Card className="text-center">
-          <p className="text-sm text-charcoal-500">
-            Nothing here yet. Add your first song, or build a set and it&apos;ll land here
-            automatically.
-          </p>
-        </Card>
+        <p className="border-t border-charcoal-100 py-8 text-center text-sm text-charcoal-500">
+          Nothing here yet. Add your first song, or build a set and it&apos;ll land here
+          automatically.
+        </p>
       ) : results.length === 0 ? (
-        <Card className="text-center">
-          <p className="text-sm text-charcoal-400">No songs match that search.</p>
-        </Card>
+        <p className="border-t border-charcoal-100 py-8 text-center text-sm text-charcoal-400">
+          No songs match that search.
+        </p>
       ) : (
-        <div className="space-y-2">
+        <div className="border-t border-charcoal-100">
           {results.map((lib) => (
             <LibraryRow
               key={lib.id}
@@ -443,8 +441,8 @@ function LibraryRow({
 }) {
   const meta = CHART_META[lib.chartSource];
   return (
-    <Card className="p-0">
-      <div className="flex items-center gap-3 p-3">
+    <div className="border-b border-cream-200">
+      <div className="flex items-center gap-3 py-3">
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-coral-100 text-coral-600">
           <Icon name="music" size={18} />
         </span>
@@ -654,7 +652,7 @@ function LibraryRow({
           </div>
         </div>
       )}
-    </Card>
+    </div>
   );
 }
 

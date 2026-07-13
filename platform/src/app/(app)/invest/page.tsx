@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useStore } from "@/lib/store";
-import { Card, Label } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { CompassRadar } from "@/components/CompassRadar";
 import { COMPASS_DIMENSIONS, band, BAND_META } from "@/lib/compass";
@@ -73,15 +72,19 @@ export default function GrowthPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="headline text-charcoal-900">INVEST YOUR WEEK</h1>
-        <p className="mt-1 text-sm text-charcoal-400">
-          The long game. Winning the week frees your time. Investing it builds the bench, the vision, and the mission.
+        <p className="label text-teal-600">The long game</p>
+        <h1 className="headline mt-1.5 text-3xl text-charcoal-900 lg:text-4xl">
+          Invest your week
+        </h1>
+        <p className="mt-2 max-w-xl text-sm text-charcoal-400">
+          Winning the week frees your time. Investing it builds the bench, the vision, and the
+          mission.
         </p>
       </div>
 
       {/* ── Where you stand — the graphic overview ─────────────────── */}
-      <Card data-tour="growth">
-        <Label>Where you stand</Label>
+      <section data-tour="growth" className="border-t border-charcoal-100 pt-6">
+        <h2 className="label text-charcoal-400">Where you stand</h2>
         {latest ? (
           <>
           <div className="mt-3 grid items-center gap-6 sm:grid-cols-[220px_1fr]">
@@ -145,10 +148,10 @@ export default function GrowthPage() {
             </Link>
           </div>
         )}
-      </Card>
+      </section>
 
       {/* ── The tools — pick one to step into ──────────────────────── */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="border-t border-charcoal-100">
         <ToolTile
           href={latest ? "/invest/compass?view=results" : "/invest/compass"}
           icon="compass"
@@ -225,17 +228,23 @@ function ToolTile({
   return (
     <Link
       href={href}
-      className="group flex flex-col rounded-xl border border-charcoal-100 bg-white p-5 shadow-[0_1px_4px_rgba(0,0,0,0.04)] transition hover:-translate-y-0.5 hover:border-teal-300 hover:shadow-[var(--shadow-md)]"
+      className="group flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-cream-200 py-5"
     >
-      <div className="flex items-center justify-between">
-        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-100 text-teal-600">
-          <Icon name={icon} size={19} />
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-600">
+        <Icon name={icon} size={19} />
+      </span>
+      <span className="min-w-0 flex-1 basis-48">
+        <span className="block text-lg font-bold text-charcoal-900 group-hover:text-teal-600">
+          {title}
         </span>
-        <Icon name="arrowRight" size={16} className="text-charcoal-300 transition group-hover:text-teal-500" />
-      </div>
-      <h2 className="mt-3 text-lg font-bold text-charcoal-900">{title}</h2>
-      <p className="mt-1 flex-1 text-sm text-charcoal-400">{desc}</p>
-      <div className="mt-4 flex min-h-[3rem] items-center">{children}</div>
+        <span className="block text-sm text-charcoal-400">{desc}</span>
+      </span>
+      <span className="flex min-w-[160px] items-center">{children}</span>
+      <Icon
+        name="arrowRight"
+        size={16}
+        className="shrink-0 text-charcoal-300 transition group-hover:text-teal-500"
+      />
     </Link>
   );
 }

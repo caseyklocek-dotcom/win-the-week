@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
-import { Card, Label } from "@/components/ui";
+import { Label } from "@/components/ui";
 import { EditableText } from "@/components/fields";
 import { Icon } from "@/components/Icon";
 import { blankPerson } from "@/lib/people";
@@ -221,18 +221,14 @@ export default function PeoplePage() {
       </div>
 
       {people.length === 0 ? (
-        <Card className="text-center">
-          <p className="text-sm text-charcoal-500">
+        <p className="border-t border-charcoal-100 py-8 text-center text-sm text-charcoal-500">
             Nobody here yet. Add your first team member, or assign people on a service and
             they&apos;ll land here automatically.
           </p>
-        </Card>
       ) : results.length === 0 ? (
-        <Card className="text-center">
-          <p className="text-sm text-charcoal-400">No one matches that search.</p>
-        </Card>
+        <p className="border-t border-charcoal-100 py-8 text-center text-sm text-charcoal-400">No one matches that search.</p>
       ) : (
-        <div className="space-y-2">
+        <div className="border-t border-charcoal-100">
           {results.map((person) => (
             <PersonRow
               key={person.id}
@@ -279,48 +275,9 @@ function PersonRow({
   onUpdate: (fields: Partial<Person>) => void;
   onRemove: () => void;
 }) {
-  // Local draft — only committed when Save is clicked.
-  const [draft, setDraft] = useState({
-    name: person.name,
-    roles: person.roles,
-    mainRole: person.mainRole,
-    email: person.email ?? "",
-    phone: formatPhone(person.phone ?? ""),
-    notes: person.notes ?? "",
-    active: person.active,
-  });
-  const [saved, setSaved] = useState(false);
-
-  // Re-sync if the upstream person changes (e.g. added via modal).
-  useEffect(() => {
-    setDraft({
-      name: person.name,
-      roles: person.roles,
-      mainRole: person.mainRole,
-      email: person.email ?? "",
-      phone: formatPhone(person.phone ?? ""),
-      notes: person.notes ?? "",
-      active: person.active,
-    });
-  }, [person]);
-
-  const handleSave = () => {
-    onUpdate({
-      name: draft.name,
-      roles: draft.roles,
-      mainRole: draft.mainRole,
-      email: draft.email,
-      phone: draft.phone,
-      notes: draft.notes,
-      active: draft.active,
-    });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1500);
-  };
-
   return (
-    <Card className="p-0">
-      <div className="flex items-center gap-3 p-3">
+    <div className="border-b border-cream-200">
+      <div className="flex items-center gap-3 py-3">
         <span
           className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold ${
             person.active
@@ -371,95 +328,75 @@ function PersonRow({
       </div>
 
       {open && (
-        <div className="space-y-4 border-t border-charcoal-100 p-4">
+        <div className="space-y-4 pb-4 pl-12">
+          {/* Everything commits as you go — no Save button to remember. */}
           <Field label="Name">
-            <input
-              value={draft.name}
-              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-              className="w-full rounded-lg border border-charcoal-100 bg-cream-100 px-3 py-2 text-sm text-charcoal-800 outline-none transition focus:border-coral-400 focus:bg-white"
-            />
+            <EditableText value={person.name} onCommit={(v) => onUpdate({ name: v })} />
           </Field>
 
           <Field label="Roles / instruments">
             <div className="mt-1">
               <RolePicker
-                roles={draft.roles}
-                main={draft.mainRole}
-                onChange={(r, m) => setDraft((d) => ({ ...d, roles: r, mainRole: m }))}
+                roles={person.roles}
+                main={person.mainRole}
+                onChange={(r, m) => onUpdate({ roles: r, mainRole: m })}
               />
             </div>
           </Field>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Email">
-              <input
-                value={draft.email}
-                onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))}
+              <EditableText
+                value={person.email ?? ""}
+                onCommit={(v) => onUpdate({ email: v.trim() })}
                 placeholder="name@email.com"
-                type="email"
-                className="w-full rounded-lg border border-charcoal-100 bg-cream-100 px-3 py-2 text-sm text-charcoal-800 outline-none transition focus:border-coral-400 focus:bg-white"
               />
             </Field>
             <Field label="Phone">
-              <input
-                value={draft.phone}
-                onChange={(e) => setDraft((d) => ({ ...d, phone: formatPhone(e.target.value) }))}
+              <EditableText
+                value={formatPhone(person.phone ?? "")}
+                onCommit={(v) => onUpdate({ phone: formatPhone(v) })}
                 placeholder="(555) 123-4567"
-                type="tel"
-                className="w-full rounded-lg border border-charcoal-100 bg-cream-100 px-3 py-2 text-sm text-charcoal-800 outline-none transition focus:border-coral-400 focus:bg-white"
               />
             </Field>
           </div>
 
           <Field label="Notes">
-            <textarea
-              value={draft.notes}
-              onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
+            <EditableText
+              multiline
+              value={person.notes ?? ""}
+              onCommit={(v) => onUpdate({ notes: v })}
               placeholder="Strengths, availability, what they're growing in…"
-              rows={2}
-              className="w-full resize-none rounded-lg border border-charcoal-100 bg-cream-100 px-3 py-2 text-sm text-charcoal-800 outline-none transition focus:border-coral-400 focus:bg-white"
             />
           </Field>
 
           <label className="flex items-center gap-2 text-sm text-charcoal-600">
             <input
               type="checkbox"
-              checked={draft.active}
-              onChange={(e) => setDraft((d) => ({ ...d, active: e.target.checked }))}
+              checked={person.active}
+              onChange={(e) => onUpdate({ active: e.target.checked })}
               className="h-4 w-4 rounded border-charcoal-200 text-coral-500 focus:ring-coral-400"
             />
             Currently serving on the team
           </label>
 
-          <div className="flex items-center justify-between border-t border-charcoal-100 pt-3">
-            <div className="flex items-center gap-3">
-              <Link
-                href="/team"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-coral-600 hover:underline"
-              >
-                Assign on a service <Icon name="arrowRight" size={13} />
-              </Link>
-              <button
-                onClick={onRemove}
-                className="text-xs font-semibold text-charcoal-400 transition hover:text-error"
-              >
-                Remove
-              </button>
-            </div>
-            <button
-              onClick={handleSave}
-              className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${
-                saved
-                  ? "bg-[#e7f4ee] text-[#2f7d5b]"
-                  : "bg-coral-500 text-white shadow-[var(--shadow-coral)] hover:bg-coral-600"
-              }`}
+          <div className="flex items-center gap-3 border-t border-cream-200 pt-3">
+            <Link
+              href="/team"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-coral-600 hover:underline"
             >
-              {saved ? "Saved ✓" : "Save"}
+              Assign on a service <Icon name="arrowRight" size={13} />
+            </Link>
+            <button
+              onClick={onRemove}
+              className="text-xs font-semibold text-charcoal-400 transition hover:text-error"
+            >
+              Remove
             </button>
           </div>
         </div>
       )}
-    </Card>
+    </div>
   );
 }
 

@@ -245,7 +245,7 @@ function LeaderDetail({
       </div>
 
       {/* header */}
-      <Card>
+      <div className="border-t border-charcoal-100 pt-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <Label>Their leader track</Label>
@@ -272,7 +272,7 @@ function LeaderDetail({
           either. <span className="font-semibold text-charcoal-600">Lead a Service</span> is
           the capstone where it all comes together.
         </p>
-      </Card>
+      </div>
 
       {/* fully-sent banner — coral, the payoff */}
       {isFullySent(track) && (

@@ -158,11 +158,11 @@ function CompassInner() {
             </p>
           </div>
 
-          <Card>
+          <div className="border-t border-charcoal-100 pt-5">
             <div className="mx-auto w-full max-w-[340px]">
               <CompassRadar axes={axes} size={340} stroke={TEAL} fill="rgba(42,141,156,0.16)" />
             </div>
-          </Card>
+          </div>
 
           {/* Full score breakdown — folds away; the radar already shows the shape */}
           <Collapsible
@@ -300,7 +300,7 @@ function CompassInner() {
           </div>
         </div>
 
-        <Card>
+        <div className="border-t border-charcoal-100 pt-5">
           <h2 className="text-xl font-bold text-charcoal-900">{dim.label}</h2>
           <p className="mt-1 text-sm text-charcoal-500">{dim.blurb}</p>
 
@@ -338,7 +338,7 @@ function CompassInner() {
               </div>
             ))}
           </div>
-        </Card>
+        </div>
 
         {/* nav */}
         <div className="flex items-center justify-between">
