@@ -5,10 +5,12 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
 import { ServicesIcon } from "./ServicesIcon";
+import { useStore } from "@/lib/store";
+import { pcsMode } from "@/lib/mode";
 
 // Phone tab bar. Five primary tabs cover the weekly core; everything else lives
 // behind "More" so the bar stays clean. Home and Growth are both reachable now.
-type NavItem = { href: string; label: string; icon: string; match?: string[] };
+type NavItem = { href: string; label: string; icon: string; match?: string[]; scheduling?: boolean };
 
 const PRIMARY: NavItem[] = [
   { href: "/", label: "Home", icon: "home" },
@@ -23,7 +25,7 @@ const PRIMARY: NavItem[] = [
 ];
 
 const MORE: NavItem[] = [
-  { href: "/people", label: "Team", icon: "users" },
+  { href: "/people", label: "Team", icon: "users", scheduling: true },
   { href: "/reports", label: "Reports", icon: "target" },
   { href: "/invest", label: "Invest", icon: "target" },
   { href: "/tools", label: "Tools", icon: "tool" },
@@ -50,8 +52,10 @@ function MoreIcon({ size = 22 }: { size?: number }) {
 export function BottomNav() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  const { state } = useStore();
+  const more = pcsMode(state.profile) ? MORE.filter((it) => !it.scheduling) : MORE;
 
-  const onMore = MORE.some((it) => isActive(it, pathname));
+  const onMore = more.some((it) => isActive(it, pathname));
 
   // Close the sheet whenever the route changes.
   useEffect(() => {
@@ -81,7 +85,7 @@ export function BottomNav() {
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-cream-200" />
             <div className="grid grid-cols-3 gap-2">
-              {MORE.map((it) => {
+              {more.map((it) => {
                 const active = isActive(it, pathname);
                 return (
                   <Link

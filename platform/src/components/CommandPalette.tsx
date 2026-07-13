@@ -17,7 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
-import { profileMode } from "@/lib/mode";
+import { pcsMode, profileMode } from "@/lib/mode";
 import { Icon } from "./Icon";
 
 export const CMDK_EVENT = "wtw:cmdk";
@@ -46,20 +46,20 @@ function fmtServiceDate(iso: string) {
 }
 
 // Every-page routes. `keywords` catch the words a leader would actually type.
-const ROUTES: { href: string; label: string; icon: string; keywords: string; hint?: string }[] = [
+const ROUTES: { href: string; label: string; icon: string; keywords: string; hint?: string; scheduling?: boolean }[] = [
   { href: "/", label: "This Sunday", icon: "home", keywords: "home dashboard today overview" },
   { href: "/quick", label: "The 15-minute plan", icon: "sparkle", keywords: "quick plan fast fifteen 15 minute wizard flow" },
   { href: "/live", label: "Sunday Live", icon: "music", keywords: "live sunday morning running order stage stand go" },
   { href: "/live/debrief", label: "Sunday debrief", icon: "check", keywords: "debrief review how did it go actual planned staff evaluate" },
   { href: "/plan", label: "The guided loop (Pray · Plan · Prep)", icon: "check", keywords: "plan pray prep loop service guided" },
   { href: "/set", label: "Worship set", icon: "music", keywords: "set songs order setlist build" },
-  { href: "/team", label: "Team for this Sunday", icon: "users", keywords: "team roster assign roles fill" },
+  { href: "/team", label: "Team for this Sunday", icon: "users", keywords: "team roster assign roles fill", scheduling: true },
   { href: "/rehearse", label: "Rehearsal", icon: "check", keywords: "rehearse rehearsal practice run" },
-  { href: "/send", label: "Send the week", icon: "users", keywords: "send comms links packets team text nudge confirm" },
-  { href: "/packet", label: "Service packet", icon: "printer", keywords: "packet print pdf charts export send" },
+  { href: "/send", label: "Send the week", icon: "users", keywords: "send comms links packets team text nudge confirm", scheduling: true },
+  { href: "/packet", label: "Service packet", icon: "printer", keywords: "packet print pdf charts export send", scheduling: true },
   { href: "/calendar", label: "Calendar & runway", icon: "calendar", keywords: "calendar runway weeks 8 four three two one schedule" },
   { href: "/songs", label: "Song library", icon: "music", keywords: "songs library catalog music charts" },
-  { href: "/people", label: "People", icon: "users", keywords: "people team members contacts volunteers" },
+  { href: "/people", label: "People", icon: "users", keywords: "people team members contacts volunteers", scheduling: true },
   { href: "/reports", label: "Reports", icon: "target", keywords: "reports rotation serving load burnout pastor export csv insights analytics import" },
   { href: "/invest", label: "Invest your week", icon: "target", keywords: "invest grow growth long game develop" },
   { href: "/invest/compass", label: "Leader Compass", icon: "target", keywords: "compass assessment eight areas leadership invest" },
@@ -83,6 +83,7 @@ export function CommandPalette() {
   const listRef = useRef<HTMLDivElement>(null);
 
   const mode = profileMode(state.profile);
+  const pcs = pcsMode(state.profile);
 
   // ---- open/close wiring ----
   useEffect(() => {
@@ -139,6 +140,7 @@ export function CommandPalette() {
     });
 
     for (const r of ROUTES) {
+      if (r.scheduling && pcs) continue; // Planning Center owns those
       out.push({
         id: `route:${r.href}`,
         group: "Go to",
@@ -216,7 +218,7 @@ export function CommandPalette() {
     }
 
     return out;
-  }, [state.services, state.activeServiceId, songLibrary, mode, go, setActiveService, setState, setTheme]);
+  }, [state.services, state.activeServiceId, songLibrary, mode, pcs, go, setActiveService, setState, setTheme]);
 
   // ---- filter ----
   const shown = useMemo(() => {

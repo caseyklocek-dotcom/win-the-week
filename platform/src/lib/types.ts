@@ -24,6 +24,10 @@ export interface Profile {
   // Fast is one-screen, keyboard-first, no hand-holding. Absent = derive from
   // guidedSetup (see profileMode in lib/mode.ts).
   mode?: "guided" | "fast";
+  // "I schedule in Planning Center." When on, the scheduling half of the app
+  // (Team/Send/Packet, People) steps aside — Win the Week keeps the heart,
+  // prep, songs, runway, reports, and growth. See pcsMode in lib/mode.ts.
+  planningCenterMode?: boolean;
 }
 
 // ---- Chord chart (built-in, transposable) ----

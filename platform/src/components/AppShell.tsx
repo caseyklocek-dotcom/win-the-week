@@ -15,7 +15,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
 import { useStore } from "@/lib/store";
-import { profileMode } from "@/lib/mode";
+import { pcsMode, profileMode } from "@/lib/mode";
 import { ThemeToggle } from "./ThemeToggle";
 import { BottomNav } from "./BottomNav";
 import { Coach } from "./Coach";
@@ -27,6 +27,7 @@ type NavItem = {
   label: string;
   match?: string[];
   invest?: boolean; // teal accent — the long-game side of the app
+  scheduling?: boolean; // hidden in Planning Center mode
 };
 
 const NAV: NavItem[] = [
@@ -38,7 +39,7 @@ const NAV: NavItem[] = [
   },
   { href: "/calendar", label: "Calendar" },
   { href: "/songs", label: "Songs" },
-  { href: "/people", label: "People" },
+  { href: "/people", label: "People", scheduling: true },
   { href: "/reports", label: "Reports" },
   { href: "/invest", label: "Invest", invest: true, match: ["/invest", "/tools", "/community"] },
 ];
@@ -100,7 +101,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
 
           <nav className="hidden h-full items-center gap-1 lg:flex" aria-label="Primary">
-            {NAV.map((item) => {
+            {NAV.filter((item) => !(item.scheduling && pcsMode(state.profile))).map((item) => {
               const active = navItemActive(item, pathname);
               return (
                 <Link

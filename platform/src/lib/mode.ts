@@ -18,3 +18,9 @@ export function profileMode(p: Profile): ExperienceMode {
   if (p.mode === "guided" || p.mode === "fast") return p.mode;
   return p.guidedSetup === false ? "fast" : "guided";
 }
+
+// "I schedule in Planning Center." One reader everywhere, so every gate
+// (tabs, nav, steps, palette) agrees.
+export function pcsMode(p: Profile): boolean {
+  return p.planningCenterMode === true;
+}

@@ -13,7 +13,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
-import { profileMode } from "@/lib/mode";
+import { pcsMode, profileMode } from "@/lib/mode";
 import { rankSuggestions } from "@/lib/suggest";
 import { lastSundayNote } from "@/lib/reflect";
 import { songFromLibrary } from "@/lib/library";
@@ -140,6 +140,9 @@ export default function QuickPlanPage() {
     songLibrary,
   } = useStore();
   const mode = profileMode(state.profile);
+  const pcs = pcsMode(state.profile);
+  // Planning Center owns the roster — the Team step steps aside.
+  const steps = pcs ? STEPS.filter((st) => st.key !== "team") : STEPS;
 
   // ---- where the week actually is → statuses + a sensible starting step ----
   const songs = useMemo(
@@ -163,10 +166,10 @@ export default function QuickPlanPage() {
   const [step, setStep] = useState<StepKey>(() => {
     if (!done.heart) return "heart";
     if (!done.set) return "set";
-    if (!done.team) return "team";
+    if (!pcs && !done.team) return "team";
     return "send";
   });
-  const stepIdx = STEPS.findIndex((s) => s.key === step);
+  const stepIdx = steps.findIndex((s) => s.key === step);
 
   // ---- the gentle timer ----
   // Ticks while the plan is open, FREEZES the moment the plan is finished —
@@ -188,7 +191,7 @@ export default function QuickPlanPage() {
     return () => clearInterval(t);
   }, [timerKey, frozen]);
   const elapsed = frozen ?? ticking;
-  const onPace = elapsed <= (TARGET_SEC * (stepIdx + 1)) / STEPS.length;
+  const onPace = elapsed <= (TARGET_SEC * (stepIdx + 1)) / steps.length;
 
   // ---- mutations ----
   const patch = (updater: (s: Service) => Service) => updateService(svc.id, updater);
@@ -276,8 +279,8 @@ export default function QuickPlanPage() {
   const totalSec = serviceSetDurationSec(svc);
   const timerPct = Math.min(100, (elapsed / TARGET_SEC) * 100);
 
-  const goNext = () => stepIdx < STEPS.length - 1 && setStep(STEPS[stepIdx + 1].key);
-  const goBack = () => stepIdx > 0 && setStep(STEPS[stepIdx - 1].key);
+  const goNext = () => stepIdx < steps.length - 1 && setStep(steps[stepIdx + 1].key);
+  const goBack = () => stepIdx > 0 && setStep(steps[stepIdx - 1].key);
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -339,7 +342,7 @@ export default function QuickPlanPage() {
       <div className="mt-8 grid gap-y-8 border-t border-charcoal-100 pt-7 lg:grid-cols-[190px_1.4fr_1fr] lg:gap-y-0">
         {/* stepper */}
         <nav className="flex gap-1 overflow-x-auto lg:flex-col lg:gap-0 lg:pr-6" aria-label="Steps">
-          {STEPS.map((s, i) => {
+          {steps.map((s, i) => {
             const active = s.key === step;
             return (
               <button
@@ -393,7 +396,7 @@ export default function QuickPlanPage() {
         <section className="lg:border-l lg:border-charcoal-100 lg:px-7">
           {mode === "guided" && (
             <p className="editorial mb-5 border-l-2 border-coral-300 pl-4 text-[15px] text-charcoal-600">
-              {STEPS[stepIdx].coach}
+              {steps[stepIdx].coach}
             </p>
           )}
 
@@ -606,6 +609,7 @@ export default function QuickPlanPage() {
                     {songs.length} songs · {fmtDuration(totalSec)}
                   </span>
                 </li>
+                {!pcs && (
                 <li className="flex items-center gap-2.5">
                   <Icon
                     name="check"
@@ -623,6 +627,7 @@ export default function QuickPlanPage() {
                     )}
                   </span>
                 </li>
+                )}
                 <li className="flex items-center gap-2.5">
                   <Icon
                     name="check"
@@ -668,7 +673,7 @@ export default function QuickPlanPage() {
             serviceTime={state.profile.serviceTime}
             songs={songs}
             confirmed={confirmed}
-            totalRoles={roles.length}
+            totalRoles={pcs ? 0 : roles.length}
           />
           <p className="mt-2.5 text-center text-xs text-charcoal-400">
             The Sunday Sheet builds itself as you plan
@@ -688,12 +693,12 @@ export default function QuickPlanPage() {
               Back
             </button>
           )}
-          {stepIdx < STEPS.length - 1 && (
+          {stepIdx < steps.length - 1 && (
             <button
               onClick={goNext}
               className="inline-flex items-center gap-2 rounded-full bg-coral-500 px-5 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition hover:bg-coral-600"
             >
-              Next: {STEPS[stepIdx + 1].label} <Icon name="arrowRight" size={15} />
+              Next: {steps[stepIdx + 1].label} <Icon name="arrowRight" size={15} />
             </button>
           )}
         </div>

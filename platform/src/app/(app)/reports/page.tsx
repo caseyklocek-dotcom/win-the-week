@@ -20,6 +20,7 @@ import { sectionSongIds, serviceSetDurationSec } from "@/lib/set";
 import { fmtDuration } from "@/lib/music";
 import { toCsv, downloadCsv, parseCsv, findColumn } from "@/lib/csv";
 import { planTimeSec } from "@/lib/plan";
+import { pcsMode } from "@/lib/mode";
 import { buildServicesIcs, downloadIcs } from "@/lib/ics";
 import { dedupeKey, blankLibrarySong } from "@/lib/library";
 import { ALL_KEYS } from "@/lib/music";
@@ -343,7 +344,8 @@ export default function ReportsPage() {
             )}
           </section>
 
-          {/* Serving load */}
+          {/* Serving load — Planning Center owns scheduling, so skip it there */}
+          {!pcsMode(state.profile) && (
           <section>
             <h2 className="label text-charcoal-400">
               Team serving load · recent {recent8.length} services
@@ -399,6 +401,7 @@ export default function ReportsPage() {
               )}
             </div>
           </section>
+          )}
 
           {/* Prep consistency */}
           <section>

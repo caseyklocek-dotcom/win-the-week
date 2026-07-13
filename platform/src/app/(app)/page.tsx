@@ -12,7 +12,7 @@
 
 import Link from "next/link";
 import { useStore } from "@/lib/store";
-import { profileMode } from "@/lib/mode";
+import { pcsMode, profileMode } from "@/lib/mode";
 import { KeyBadge, ProgressBar } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { ServiceSwitcher } from "@/components/ServiceSwitcher";
@@ -81,6 +81,7 @@ function getGreeting(
 function nextStep(
   svc: Service,
   songs: Song[],
+  pcs: boolean,
 ): { label: string; href: string } {
   const roles = svc.teams.flatMap((t) => t.roles);
   const open = roles.find((r) => r.status === "no");
@@ -88,20 +89,26 @@ function nextStep(
 
   if (svc.status.pray !== "done") return { label: "start with prayer", href: "/plan?tab=pray" };
   if (songs.length === 0) return { label: "build the set", href: "/set" };
-  if (open) return { label: `fill the ${open.position} slot`, href: "/team" };
-  if (awaiting)
+  if (!pcs && open) return { label: `fill the ${open.position} slot`, href: "/team" };
+  if (!pcs && awaiting)
     return { label: `nudge ${awaiting.person.split(" ")[0] || "the team"}`, href: "/team" };
   if (svc.status.plan !== "done") return { label: "finish the plan", href: "/plan" };
   if (svc.status.prep !== "done") return { label: "run your prep", href: "/plan?tab=prep" };
-  return { label: "send the packet", href: "/packet" };
+  return pcs
+    ? { label: "review the week", href: "/plan" }
+    : { label: "send the packet", href: "/packet" };
 }
 
 // ---- Saturday confidence — how ready the week already is, 0–100 ----
-function confidence(svc: Service, songs: Song[]): { pct: number; parts: string[] } {
+function confidence(
+  svc: Service,
+  songs: Song[],
+  pcs: boolean,
+): { pct: number; parts: string[] } {
   const roles = svc.teams.flatMap((t) => t.roles);
   const confirmed = roles.filter((r) => r.status === "ok").length;
-  const teamRatio = roles.length ? confirmed / roles.length : 1;
-  const open = roles.filter((r) => r.status === "no").length;
+  const teamRatio = pcs ? 1 : roles.length ? confirmed / roles.length : 1;
+  const open = pcs ? 0 : roles.filter((r) => r.status === "no").length;
 
   let pct = 0;
   if (svc.status.pray === "done") pct += 15;
@@ -114,7 +121,8 @@ function confidence(svc: Service, songs: Song[]): { pct: number; parts: string[]
 
   const parts: string[] = [];
   parts.push(songs.length > 0 ? `${songs.length} songs set` : "no songs yet");
-  if (open > 0) parts.push(`${open} role${open > 1 ? "s" : ""} open`);
+  if (pcs) parts.push("team in Planning Center");
+  else if (open > 0) parts.push(`${open} role${open > 1 ? "s" : ""} open`);
   else if (roles.length) parts.push("team covered");
   parts.push(svc.status.prep === "done" ? "prep done" : "prep ahead");
   return { pct, parts };
@@ -235,9 +243,10 @@ export default function Dashboard() {
   const doneCount = (["pray", "plan", "prep"] as const).filter(
     (k) => svc.status[k] === "done",
   ).length;
+  const pcs = pcsMode(state.profile);
   const { headline, nudge } = getGreeting(firstName, doneCount, svc.date);
-  const next = nextStep(svc, allSongs);
-  const conf = confidence(svc, allSongs);
+  const next = nextStep(svc, allSongs, pcs);
+  const conf = confidence(svc, allSongs, pcs);
   const streak = prepStreak(state.services);
 
   const show = (key: string) =>
@@ -367,7 +376,11 @@ export default function Dashboard() {
       )}
 
       {/* ---- Set · Team · Confidence ---- */}
-      <div className="mt-9 grid gap-y-10 border-t border-charcoal-100 pt-8 lg:grid-cols-[1.25fr_1fr_1fr] lg:gap-y-0">
+      <div
+        className={`mt-9 grid gap-y-10 border-t border-charcoal-100 pt-8 lg:gap-y-0 ${
+          pcs ? "lg:grid-cols-[1.4fr_1fr]" : "lg:grid-cols-[1.25fr_1fr_1fr]"
+        }`}
+      >
         {/* The set */}
         {show("set") && (
           <section className="lg:pr-8">
@@ -411,7 +424,7 @@ export default function Dashboard() {
         )}
 
         {/* Team */}
-        {show("team") && (
+        {show("team") && !pcs && (
           <section className="lg:border-l lg:border-charcoal-100 lg:px-8">
             <div className="flex items-baseline justify-between">
               <h2 className="label text-charcoal-400">
@@ -508,18 +521,37 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="mt-4 flex flex-col gap-2">
-            <Link
-              href="/packet"
-              className="flex items-center justify-center gap-2 rounded-full bg-coral-500 px-4 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition-colors hover:bg-coral-600"
-            >
-              Send the packet
-            </Link>
-            <Link
-              href="/team"
-              className="flex items-center justify-center gap-2 rounded-full border border-charcoal-100 px-4 py-2.5 text-sm font-semibold text-charcoal-600 transition-colors hover:border-charcoal-200"
-            >
-              Same team as last week
-            </Link>
+            {pcs ? (
+              <>
+                <Link
+                  href="/set"
+                  className="flex items-center justify-center gap-2 rounded-full bg-coral-500 px-4 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition-colors hover:bg-coral-600"
+                >
+                  Build the set
+                </Link>
+                <Link
+                  href="/plan"
+                  className="flex items-center justify-center gap-2 rounded-full border border-charcoal-100 px-4 py-2.5 text-sm font-semibold text-charcoal-600 transition-colors hover:border-charcoal-200"
+                >
+                  Open the plan
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/packet"
+                  className="flex items-center justify-center gap-2 rounded-full bg-coral-500 px-4 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition-colors hover:bg-coral-600"
+                >
+                  Send the packet
+                </Link>
+                <Link
+                  href="/team"
+                  className="flex items-center justify-center gap-2 rounded-full border border-charcoal-100 px-4 py-2.5 text-sm font-semibold text-charcoal-600 transition-colors hover:border-charcoal-200"
+                >
+                  Same team as last week
+                </Link>
+              </>
+            )}
           </div>
           {show("capacity") && svc.capacity.note && (
             <p className="mt-4 text-center text-xs text-charcoal-400">

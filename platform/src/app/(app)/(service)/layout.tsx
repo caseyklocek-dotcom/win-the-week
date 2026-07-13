@@ -5,14 +5,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ServiceSwitcher, useServiceNav } from "@/components/ServiceSwitcher";
 import { ServiceActions } from "@/components/ServiceActions";
+import { useStore } from "@/lib/store";
+import { pcsMode } from "@/lib/mode";
 
-const TABS = [
+const ALL_TABS = [
   { href: "/plan", label: "Plan" },
   { href: "/set", label: "Set" },
-  { href: "/team", label: "Team" },
+  { href: "/team", label: "Team", scheduling: true },
   { href: "/rehearse", label: "Rehearse" },
-  { href: "/send", label: "Send" },
-  { href: "/packet", label: "Packet" },
+  { href: "/send", label: "Send", scheduling: true },
+  { href: "/packet", label: "Packet", scheduling: true },
 ];
 
 function fmtDate(iso: string) {
@@ -30,6 +32,9 @@ export default function ServiceWorkspaceLayout({
 }) {
   const pathname = usePathname();
   const { activeService } = useServiceNav();
+  const { state } = useStore();
+  // Planning Center keeps the scheduling; those tabs step aside.
+  const TABS = pcsMode(state.profile) ? ALL_TABS.filter((t) => !t.scheduling) : ALL_TABS;
 
   // On phones the tab row scrolls horizontally; keep the active tab in view
   // whenever the route changes so "where am I" never scrolls off-screen.

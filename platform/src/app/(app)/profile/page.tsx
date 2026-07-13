@@ -176,6 +176,39 @@ export default function ProfilePage() {
         </div>
       </Card>
 
+      {/* How you plan */}
+      <Card>
+        <Label>How you plan</Label>
+        <button
+          onClick={() => patchProfile({ planningCenterMode: !profile.planningCenterMode })}
+          className="mt-3 flex w-full items-center justify-between gap-4 text-left"
+          role="switch"
+          aria-checked={profile.planningCenterMode === true}
+        >
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-charcoal-800">
+              I schedule in Planning Center
+            </div>
+            <p className="mt-0.5 text-xs text-charcoal-400">
+              Win the Week keeps the heart, prep, songs, and growth; Planning Center keeps the
+              scheduling. Team, Send, and Packet step aside until you turn this off.
+            </p>
+          </div>
+          <span
+            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+              profile.planningCenterMode ? "bg-coral-500" : "bg-charcoal-100"
+            }`}
+            aria-hidden
+          >
+            <span
+              className={`absolute top-0.5 h-5 w-5 rounded-full bg-[#ffffff] shadow transition-all ${
+                profile.planningCenterMode ? "left-[22px]" : "left-0.5"
+              }`}
+            />
+          </span>
+        </button>
+      </Card>
+
       {/* Dashboard customization */}
       <Card>
         <Label>Dashboard layout</Label>
