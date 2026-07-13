@@ -383,24 +383,22 @@ export default function ReportsPage() {
 
           {/* Pastor report */}
           <section>
-            <div className="rounded-2xl bg-charcoal-800 p-6 text-cream-200 dark:bg-charcoal-100">
-              <h2 className="label text-charcoal-400">Pastor report · {quarter.label}</h2>
+            {/* A committed dark artifact in BOTH themes — raw hex only, since
+                theme tokens (white, cream, charcoal) flip under .dark. */}
+            <div className="rounded-2xl bg-[#2e2e2e] p-6 text-[#b0aca6]">
+              <h2 className="label text-[#8d877e]">Pastor report · {quarter.label}</h2>
               <p className="mt-3 text-[15px] leading-relaxed">
-                <b className="text-lg text-white dark:text-charcoal-900">{pastor.services}</b>{" "}
-                services planned &nbsp;·&nbsp;{" "}
-                <b className="text-lg text-white dark:text-charcoal-900">{pastor.songs}</b> songs
+                <b className="text-lg text-[#ffffff]">{pastor.services}</b> services planned
+                &nbsp;·&nbsp; <b className="text-lg text-[#ffffff]">{pastor.songs}</b> songs
                 stewarded
                 <br />
-                <b className="text-lg text-white dark:text-charcoal-900">
-                  {pastor.volunteers}
-                </b>{" "}
-                volunteers served &nbsp;·&nbsp;{" "}
-                <b className="text-lg text-white dark:text-charcoal-900">{prep.streak}</b>-week
-                prep streak
+                <b className="text-lg text-[#ffffff]">{pastor.volunteers}</b> volunteers served
+                &nbsp;·&nbsp; <b className="text-lg text-[#ffffff]">{prep.streak}</b>-week prep
+                streak
               </p>
               <button
                 onClick={printPastor}
-                className="mt-4 inline-flex items-center gap-2 rounded-full bg-coral-500 px-4 py-2 text-xs font-bold text-white shadow-[var(--shadow-coral)] transition hover:bg-coral-600"
+                className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#ff6b5e] px-4 py-2 text-xs font-bold text-[#ffffff] shadow-[var(--shadow-coral)] transition hover:bg-[#e85a4d]"
               >
                 <Icon name="printer" size={13} /> Print / save as PDF
               </button>

@@ -164,6 +164,16 @@
   --foreground: #f6f3ee;
 }
 
+/* In dark mode --color-white flips dark so bg-white cards invert — but text
+   on SOLID CORAL should stay truly white in both themes. Re-declare the token
+   on coral surfaces so every `text-white` button/pill reads correctly without
+   touching call sites. */
+.dark .bg-coral-500,
+.dark .bg-coral-600,
+.dark .bg-coral-400 {
+  --color-white: #ffffff;
+}
+
 html { color-scheme: light; }
 html.dark { color-scheme: dark; }
 

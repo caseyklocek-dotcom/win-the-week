@@ -156,7 +156,7 @@ export default function SundayLivePage() {
                     <span
                       className={`block font-bold leading-tight ${
                         isNow
-                          ? "text-[26px] text-white"
+                          ? "text-[26px] text-[#ffffff]"
                           : isDone
                             ? "text-base text-[#5c5852] line-through decoration-1"
                             : "text-base text-[#8d877e]"
@@ -182,8 +182,10 @@ export default function SundayLivePage() {
                       >
                         {showChart ? "Hide chart" : "Show chart"}
                       </button>
+                      {/* Token bg-white flips to a dark card in dark mode, and the
+                          chart's token text flips with it — coherent in both themes. */}
                       {showChart && (
-                        <div className="mt-2 overflow-x-auto rounded-xl bg-white p-4 dark:bg-white">
+                        <div className="mt-2 overflow-x-auto rounded-xl bg-white p-4">
                           <ChartSheet song={row.song} />
                         </div>
                       )}
@@ -201,7 +203,7 @@ export default function SundayLivePage() {
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8d877e]">
               That&rsquo;s the service
             </p>
-            <h1 className="mt-2 text-3xl font-extrabold uppercase leading-tight text-white">
+            <h1 className="mt-2 text-3xl font-extrabold uppercase leading-tight text-[#ffffff]">
               Well led{state.profile.name ? `, ${state.profile.name.split(" ")[0]}` : ""}.
             </h1>
             <p className="mt-3 text-sm text-[#b0aca6]">
@@ -218,7 +220,7 @@ export default function SundayLivePage() {
             <div className="mt-4 flex gap-2.5">
               <button
                 onClick={finish}
-                className="flex-1 rounded-full bg-[#ff6b5e] px-5 py-3.5 text-sm font-extrabold text-white"
+                className="flex-1 rounded-full bg-[#ff6b5e] px-5 py-3.5 text-sm font-extrabold text-[#ffffff]"
               >
                 {reflection.trim() ? "Save & finish" : "Finish"}
               </button>
@@ -238,7 +240,7 @@ export default function SundayLivePage() {
         <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-[#1a1a1a] via-[#1a1a1a]/95 to-transparent px-5 pb-6 pt-8">
           <button
             onClick={() => setIdx((i) => i + 1)}
-            className="mx-auto flex w-full max-w-md items-center justify-center gap-2 rounded-full bg-[#ff6b5e] px-6 py-4 text-base font-extrabold text-white shadow-[0_10px_30px_-8px_rgba(255,107,94,0.5)]"
+            className="mx-auto flex w-full max-w-md items-center justify-center gap-2 rounded-full bg-[#ff6b5e] px-6 py-4 text-base font-extrabold text-[#ffffff] shadow-[0_10px_30px_-8px_rgba(255,107,94,0.5)]"
           >
             {idx === rows.length - 1 ? "That's a wrap" : "Next"}{" "}
             <Icon name="arrowRight" size={18} />
