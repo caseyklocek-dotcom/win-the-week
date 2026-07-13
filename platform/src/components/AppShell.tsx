@@ -21,6 +21,7 @@ import { BottomNav } from "./BottomNav";
 import { Coach } from "./Coach";
 import { Tour } from "./Tour";
 import { CommandPalette, openPalette } from "./CommandPalette";
+import { QuickResumePill } from "./QuickResumePill";
 
 type NavItem = {
   href: string;
@@ -206,6 +207,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* ⌘K — mounted once, listens globally */}
       <CommandPalette />
+
+      {/* Get back into the 15-minute plan if a session is mid-flight */}
+      <QuickResumePill />
 
       {/* Guided coach — only in Guided mode; Fast mode means no hand-holding */}
       {mode === "guided" && <Coach />}
