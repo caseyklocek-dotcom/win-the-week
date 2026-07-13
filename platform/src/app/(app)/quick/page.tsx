@@ -168,19 +168,25 @@ export default function QuickPlanPage() {
   const stepIdx = STEPS.findIndex((s) => s.key === step);
 
   // ---- the gentle timer ----
+  // Ticks while the plan is open, FREEZES the moment the plan is finished —
+  // the number's whole job is "how long did it take me to plan a service".
+  // The frozen value lives on the service (planSeconds) and feeds Reports.
   const timerKey = `wtw_quick_start_${svc.id}`;
-  const [elapsed, setElapsed] = useState(0);
+  const frozen = svc.planSeconds && svc.planSeconds > 0 ? svc.planSeconds : null;
+  const [ticking, setTicking] = useState(0);
   useEffect(() => {
+    if (frozen) return; // done — nothing to count
     let start = Number(sessionStorage.getItem(timerKey));
     if (!start) {
       start = Date.now();
       sessionStorage.setItem(timerKey, String(start));
     }
-    const tick = () => setElapsed(Math.floor((Date.now() - start) / 1000));
+    const tick = () => setTicking(Math.floor((Date.now() - start) / 1000));
     tick();
     const t = setInterval(tick, 1000);
     return () => clearInterval(t);
-  }, [timerKey]);
+  }, [timerKey, frozen]);
+  const elapsed = frozen ?? ticking;
   const onPace = elapsed <= (TARGET_SEC * (stepIdx + 1)) / STEPS.length;
 
   // ---- mutations ----
@@ -242,8 +248,16 @@ export default function QuickPlanPage() {
     }));
   };
 
-  const markPlanDone = () =>
-    patch((s) => ({ ...s, status: { ...s.status, plan: "done" } }));
+  const markPlanDone = () => {
+    const took = frozen ?? ticking;
+    patch((s) => ({
+      ...s,
+      status: { ...s.status, plan: "done" },
+      // Stamp once — reopening the flow later never overwrites the record.
+      ...(s.planSeconds && s.planSeconds > 0 ? {} : { planSeconds: Math.max(1, took) }),
+    }));
+    sessionStorage.removeItem(timerKey);
+  };
 
   // ---- suggestions + library search ----
   const suggestions = useMemo(() => rankSuggestions(state, svc, 5), [state, svc]);
@@ -297,14 +311,22 @@ export default function QuickPlanPage() {
         </div>
         <span
           className={`ml-auto rounded-full px-3.5 py-1.5 text-xs font-bold ${
-            elapsed > TARGET_SEC
-              ? "bg-cream-200 text-charcoal-600"
-              : onPace
-                ? "bg-ok-tint text-ok-ink"
-                : "bg-wait-tint text-wait-ink"
+            frozen
+              ? "bg-ok-tint text-ok-ink"
+              : elapsed > TARGET_SEC
+                ? "bg-cream-200 text-charcoal-600"
+                : onPace
+                  ? "bg-ok-tint text-ok-ink"
+                  : "bg-wait-tint text-wait-ink"
           }`}
         >
-          {elapsed > TARGET_SEC ? "Your pace is the right pace" : onPace ? "On pace" : "No rush"}
+          {frozen
+            ? `Planned in ${fmtClock(frozen)}`
+            : elapsed > TARGET_SEC
+              ? "Your pace is the right pace"
+              : onPace
+                ? "On pace"
+                : "No rush"}
         </span>
       </div>
 

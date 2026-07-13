@@ -58,3 +58,14 @@ export function migratePlan(s: AppState): AppState {
   }
   return { ...s, plan: { tier, trialStartedAt } };
 }
+
+// How long planning actually took for one service, in seconds. The quick flow
+// stamps planSeconds when it finishes; the guided Coach banks per-hour time in
+// loopSeconds. Zero means "not tracked" — callers should skip those services.
+export function planTimeSec(svc: {
+  planSeconds?: number;
+  loopSeconds?: Record<number, number>;
+}): number {
+  if (svc.planSeconds && svc.planSeconds > 0) return svc.planSeconds;
+  return Object.values(svc.loopSeconds ?? {}).reduce((a, b) => a + b, 0);
+}

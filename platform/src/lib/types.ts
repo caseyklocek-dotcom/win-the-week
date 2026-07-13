@@ -269,6 +269,10 @@ export interface Service {
   oneThing: string; // the one takeaway
   status: { pray: PrepStatus; plan: PrepStatus; prep: PrepStatus };
   milestones: Record<string, PrepStatus>; // runway checklist (themeSet, setDrafted, ...)
+  // How long planning actually took (seconds). Set once when the 15-minute
+  // flow finishes; the guided path banks time in loopSeconds instead. Reports
+  // reads planSeconds ?? sum(loopSeconds) — see planTimeSec() in lib/plan.ts.
+  planSeconds?: number;
   capacity: { level: CapacityLevel; note: string };
   blocks: HourBlock[];
   loopSeconds?: Record<number, number>; // guided-coach time banked per hour index

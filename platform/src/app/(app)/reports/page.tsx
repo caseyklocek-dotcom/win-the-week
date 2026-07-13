@@ -19,6 +19,7 @@ import { resolveName, nameKey } from "@/lib/people";
 import { sectionSongIds, serviceSetDurationSec } from "@/lib/set";
 import { fmtDuration } from "@/lib/music";
 import { toCsv, downloadCsv, parseCsv, findColumn } from "@/lib/csv";
+import { planTimeSec } from "@/lib/plan";
 import { buildServicesIcs, downloadIcs } from "@/lib/ics";
 import { dedupeKey, blankLibrarySong } from "@/lib/library";
 import { ALL_KEYS } from "@/lib/music";
@@ -134,6 +135,20 @@ export default function ReportsPage() {
     return { dots, doneCount: dots.filter((d) => d.done).length, streak };
   }, [byDateDesc, todayIso]);
 
+  // ---- Time to plan (the leader's own metric: how long a service takes) ----
+  const planTimes = useMemo(() => {
+    const tracked = byDateDesc
+      .map((s) => ({ date: s.date, title: s.title, sec: planTimeSec(s) }))
+      .filter((s) => s.sec > 0)
+      .slice(0, 6)
+      .reverse();
+    const avg = tracked.length
+      ? Math.round(tracked.reduce((a, b) => a + b.sec, 0) / tracked.length)
+      : 0;
+    const max = Math.max(1, ...tracked.map((t) => t.sec));
+    return { tracked, avg, max };
+  }, [byDateDesc]);
+
   // ---- Pastor report (this quarter) ----
   const quarter = quarterOf(new Date());
   const pastor = useMemo(() => {
@@ -192,10 +207,14 @@ export default function ReportsPage() {
         s.status.pray === "done" && s.status.plan === "done" && s.status.prep === "done"
           ? "fully prepped"
           : "",
+        planTimeSec(s) > 0 ? Math.round(planTimeSec(s) / 60) : "",
       ]);
     downloadCsv(
       "wtw-services",
-      toCsv(["Date", "Title", "Theme", "Scripture", "Songs", "Set length", "Prep"], rows),
+      toCsv(
+        ["Date", "Title", "Theme", "Scripture", "Songs", "Set length", "Prep", "Minutes to plan"],
+        rows,
+      ),
     );
   };
   const exportTeam = () => {
@@ -405,6 +424,48 @@ export default function ReportsPage() {
                   <span className="text-charcoal-400"> · {prep.streak} in a row right now</span>
                 )}
               </p>
+            )}
+          </section>
+
+          {/* Time to plan */}
+          <section>
+            <h2 className="label text-charcoal-400">Time to plan a service</h2>
+            {planTimes.tracked.length === 0 ? (
+              <p className="mt-3 text-sm text-charcoal-400">
+                Finish a plan in the 15-minute flow (or with the guided coach) and your actual
+                planning time lands here.
+              </p>
+            ) : (
+              <>
+                <div className="mt-3 space-y-2.5">
+                  {planTimes.tracked.map((t) => (
+                    <div
+                      key={t.date}
+                      className="grid grid-cols-[minmax(90px,120px)_1fr_52px] items-center gap-3 text-sm"
+                    >
+                      <span className="truncate font-semibold text-charcoal-800">
+                        {fmtShort(t.date)}
+                      </span>
+                      <span className="h-2.5 overflow-hidden rounded-full bg-cream-200">
+                        <span
+                          className="block h-full rounded-full bg-teal-500"
+                          style={{ width: `${(t.sec / planTimes.max) * 100}%` }}
+                        />
+                      </span>
+                      <span className="text-right text-xs tabular-nums text-charcoal-400">
+                        {fmtDuration(t.sec)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-sm text-charcoal-600">
+                  Average: <b>{fmtDuration(planTimes.avg)}</b>
+                  <span className="text-charcoal-400">
+                    {" "}
+                    · the goal is a planned service in one honest sitting
+                  </span>
+                </p>
+              </>
             )}
           </section>
 
