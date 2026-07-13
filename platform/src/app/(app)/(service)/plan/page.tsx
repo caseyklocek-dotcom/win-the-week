@@ -10,30 +10,26 @@ import { EditableText, Segmented } from "@/components/fields";
 import { PlanRail } from "@/components/PlanRail";
 import { fmtDuration, weekdayName } from "@/lib/music";
 import { sectionSongIds, serviceSetDurationSec } from "@/lib/set";
-import type { CapacityLevel, CommItem, PrepStatus, RoleStatus, Service } from "@/lib/types";
+import type { CapacityLevel, PrepStatus, Service } from "@/lib/types";
+import { lastSundayNote } from "@/lib/reflect";
 
 const TABS = [
   { id: "overview", label: "Overview" },
-  { id: "schedule", label: "Schedule" },
   { id: "pray", label: "Pray" },
-  { id: "plan", label: "Plan" },
   { id: "prep", label: "Prep" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
+
+// Old deep links (home loop nodes, the tour, the coach) used tab ids that no
+// longer exist — the work moved to /set, /team, and /send, and the 5-hour
+// schedule folded into Overview. Land those links safely.
+const LEGACY_TABS: Record<string, TabId> = { plan: "overview", schedule: "overview" };
 
 const TYPE_COLOR: Record<string, string> = {
   pray: "#3d9970",
   plan: "#ff6b5e",
   prep: "#2e2e2e",
   admin: "#b9711d",
-};
-
-const ROLE_CYCLE: Record<RoleStatus, RoleStatus> = { ok: "wait", wait: "no", no: "ok" };
-const ROLE_DOT: Record<RoleStatus, string> = { ok: "#2f7d5b", wait: "#b9711d", no: "#cdc6ba" };
-const COMM_CYCLE: Record<CommItem["status"], CommItem["status"]> = {
-  todo: "draft",
-  draft: "sent",
-  sent: "todo",
 };
 
 export default function PlanPage() {
@@ -53,7 +49,9 @@ function PlanInner() {
   // React to the URL — the coach navigates to /plan?tab=… to land you on a tab.
   useEffect(() => {
     const p = params.get("tab");
-    if (p && TABS.some((t) => t.id === p)) setTab(p as TabId);
+    if (!p) return;
+    if (TABS.some((t) => t.id === p)) setTab(p as TabId);
+    else if (LEGACY_TABS[p]) setTab(LEGACY_TABS[p]);
   }, [params]);
   useEffect(() => {
     if (params.get("setup") === "new" && (state.profile.guidedSetup ?? true)) setShowSetup(true);
@@ -65,11 +63,19 @@ function PlanInner() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <div className="mb-5">
-        <h1 className="headline text-3xl text-charcoal-900">Plan a Service</h1>
-        <p className="mt-1 text-charcoal-400">
-          {svc.title} · Pray, then plan, then prep. One loop, every week.
-        </p>
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="headline text-3xl text-charcoal-900">Plan a Service</h1>
+          <p className="mt-1 text-charcoal-400">
+            {svc.title} · Pray, then plan, then prep. One loop, every week.
+          </p>
+        </div>
+        <Link
+          href="/quick"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-coral-600 hover:underline"
+        >
+          <Icon name="sparkle" size={14} /> In a hurry? The 15-minute plan
+        </Link>
       </div>
 
       {/* Tab bar */}
@@ -91,12 +97,10 @@ function PlanInner() {
 
       {tab === "overview" && (
         <WithRail>
-          <Overview svc={svc} patch={patch} setTab={setTab} />
+          <Overview svc={svc} patch={patch} setTab={setTab} services={state.services} />
         </WithRail>
       )}
-      {tab === "schedule" && <Schedule svc={svc} patch={patch} />}
-      {tab === "pray" && <Pray svc={svc} patch={patch} />}
-      {tab === "plan" && <PlanWork svc={svc} patch={patch} />}
+      {tab === "pray" && <Pray svc={svc} patch={patch} services={state.services} />}
       {tab === "prep" && <Prep svc={svc} patch={patch} />}
 
       {showSetup && (
@@ -130,10 +134,12 @@ function Overview({
   svc,
   patch,
   setTab,
+  services,
 }: {
   svc: Service;
   patch: (fn: (s: Service) => Service) => void;
   setTab: (id: TabId) => void;
+  services: Service[];
 }) {
   const cycle: Record<PrepStatus, PrepStatus> = { todo: "doing", doing: "done", done: "todo" };
   const stages = [
@@ -149,7 +155,13 @@ function Overview({
   const openRoles = roles.filter((r) => r.status === "no").length;
   const songCount = svc.setSections.reduce((n, s) => n + sectionSongIds(s).length, 0);
   const totalSec = serviceSetDurationSec(svc);
-  const commsLeft = svc.comms.filter((c) => c.status !== "sent").length;
+  // Comms now run through the Send board: personal packet links per person.
+  const assignedCount = new Set(
+    roles.filter((r) => r.person.trim() || r.personId).map((r) => r.personId ?? r.person.trim().toLowerCase()),
+  ).size;
+  const sentCount = Object.keys(svc.sentPackets ?? {}).length;
+  const unsent = Math.max(0, assignedCount - sentCount);
+  const lastNote = lastSundayNote(services, svc.date);
 
   // The single most useful next move. First unmet thing wins.
   const next: { text: string; cta: string; go: () => void } | null = openRoles
@@ -164,11 +176,11 @@ function Overview({
           cta: "Build the set",
           go: () => (window.location.href = "/set"),
         }
-      : commsLeft
+      : unsent > 0
         ? {
-            text: `${commsLeft} ${commsLeft === 1 ? "message" : "messages"} still to send.`,
-            cta: "Open communications",
-            go: () => setTab("plan"),
+            text: `${unsent} ${unsent === 1 ? "person hasn't" : "people haven't"} gotten their link yet.`,
+            cta: "Send the week",
+            go: () => (window.location.href = "/send"),
           }
         : awaiting
           ? {
@@ -219,25 +231,45 @@ function Overview({
         </Card>
       )}
 
-      {/* ── The heart — quiet context, edited over in Plan. ─────────── */}
-      <button
-        onClick={() => setTab("plan")}
-        className="group block w-full rounded-xl border border-charcoal-100 bg-cream-200/40 p-4 text-left transition hover:border-coral-300"
-      >
-        <div className="flex items-center justify-between">
-          <Label>The heart of this {weekdayName(svc.date)}</Label>
-          <span className="text-xs font-semibold text-coral-600 opacity-0 transition group-hover:opacity-100">
-            Edit in Plan
-          </span>
+      {/* ── Last Sunday speaks first ─────────────────────────────────── */}
+      {lastNote && (
+        <div className="border-l-2 border-coral-400 pl-4">
+          <Label>From last Sunday</Label>
+          <p className="editorial mt-1 text-[15px] text-charcoal-700">
+            &ldquo;{lastNote.note}&rdquo;
+          </p>
         </div>
-        <p className="editorial mt-1.5 text-lg text-charcoal-800">
-          &ldquo;{svc.theme || "Set a theme"}&rdquo;
-        </p>
-        <p className="mt-1 text-sm text-charcoal-500">
-          {svc.scripture || "—"}
-          {svc.oneThing ? <span className="text-charcoal-400"> · {svc.oneThing}</span> : null}
-        </p>
-      </button>
+      )}
+
+      {/* ── The heart — edited right here, no hunting. ──────────────── */}
+      <div className="rounded-xl border border-charcoal-100 bg-cream-200/40 p-4">
+        <Label>The heart of this {weekdayName(svc.date)}</Label>
+        <div className="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+          <div>
+            <div className="text-xs font-semibold text-charcoal-500">Theme</div>
+            <EditableText
+              value={svc.theme}
+              onCommit={(v) => patch((p) => ({ ...p, theme: v }))}
+              placeholder="Set a theme"
+            />
+            <div className="mt-2 text-xs font-semibold text-charcoal-500">Scripture</div>
+            <EditableText
+              value={svc.scripture}
+              onCommit={(v) => patch((p) => ({ ...p, scripture: v }))}
+              placeholder="e.g. Psalm 119:105"
+            />
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-charcoal-500">The one takeaway</div>
+            <EditableText
+              multiline
+              value={svc.oneThing}
+              onCommit={(v) => patch((p) => ({ ...p, oneThing: v }))}
+              placeholder="If they remember one sentence…"
+            />
+          </div>
+        </div>
+      </div>
 
       {/* ── One status strip: the loop + where it stands. ──────────── */}
       <Card>
@@ -280,18 +312,62 @@ function Overview({
             </div>
             <div className="text-xs text-charcoal-400">{awaiting} awaiting · {openRoles} open</div>
           </Link>
-          <button
-            onClick={() => setTab("plan")}
-            className="group rounded-lg px-2 py-1.5 text-left transition hover:bg-cream-200"
-          >
-            <div className="text-xs font-semibold text-charcoal-400 group-hover:text-coral-600">Comms</div>
-            <div className="text-base font-bold text-charcoal-900">{commsLeft} to send</div>
-            <div className="text-xs text-charcoal-400">
-              {svc.comms.length - commsLeft} of {svc.comms.length} done
+          <Link href="/send" className="group rounded-lg px-2 py-1.5 transition hover:bg-cream-200">
+            <div className="text-xs font-semibold text-charcoal-400 group-hover:text-coral-600">
+              Send
             </div>
-          </button>
+            <div className="text-base font-bold text-charcoal-900">
+              {sentCount}/{assignedCount || "–"} links
+            </div>
+            <div className="text-xs text-charcoal-400">
+              {unsent > 0 ? `${unsent} to send` : sentCount > 0 ? "everyone has one" : "not started"}
+            </div>
+          </Link>
         </div>
       </Card>
+
+      {/* ── The 5-hour schedule — the framework, folded until wanted. ── */}
+      <ScheduleFold svc={svc} patch={patch} />
+    </div>
+  );
+}
+
+// The Schedule (Casey's five hours) used to be its own tab; it's Intensive 1
+// curriculum, so it stays — as opt-in depth under the overview, not a stop on
+// every visit.
+function ScheduleFold({
+  svc,
+  patch,
+}: {
+  svc: Service;
+  patch: (fn: (s: Service) => Service) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const banked = Object.values(svc.loopSeconds ?? {}).reduce((a, b) => a + b, 0);
+  return (
+    <div className="border-t border-charcoal-100 pt-4">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 text-left"
+      >
+        <div>
+          <Label>The 5-hour schedule</Label>
+          <p className="mt-0.5 text-sm text-charcoal-400">
+            The full framework, hour by hour{banked > 0 ? ` · ${Math.round(banked / 60)} min banked` : ""}
+          </p>
+        </div>
+        <Icon
+          name={open ? "chevronUp" : "chevronDown"}
+          size={16}
+          className="shrink-0 text-charcoal-400"
+        />
+      </button>
+      {open && (
+        <div className="mt-4">
+          <Schedule svc={svc} patch={patch} />
+        </div>
+      )}
     </div>
   );
 }
@@ -536,14 +612,31 @@ function HourStep({
 }
 
 // ---------------- Pray ----------------
-function Pray({ svc, patch }: { svc: Service; patch: (fn: (s: Service) => Service) => void }) {
+function Pray({
+  svc,
+  patch,
+  services,
+}: {
+  svc: Service;
+  patch: (fn: (s: Service) => Service) => void;
+  services: Service[];
+}) {
   const caps: { value: CapacityLevel; label: string }[] = [
     { value: "low", label: "Low" },
     { value: "medium", label: "Medium" },
     { value: "high", label: "High" },
   ];
+  const lastNote = lastSundayNote(services, svc.date);
   return (
     <div data-coach="pray" className="space-y-6">
+      {lastNote && (
+        <div className="border-l-2 border-coral-400 pl-4">
+          <Label>From last Sunday</Label>
+          <p className="editorial mt-1 text-[15px] text-charcoal-700">
+            &ldquo;{lastNote.note}&rdquo;
+          </p>
+        </div>
+      )}
       <Card>
         <Label>How much do you have this week?</Label>
         <p className="mt-1 text-sm text-charcoal-400">
@@ -606,183 +699,6 @@ function Pray({ svc, patch }: { svc: Service; patch: (fn: (s: Service) => Servic
         </div>
       </Card>
     </div>
-  );
-}
-
-// ---------------- Plan (the work) ----------------
-function PlanWork({ svc, patch }: { svc: Service; patch: (fn: (s: Service) => Service) => void }) {
-  const songs = svc.setSections.flatMap((s) =>
-    sectionSongIds(s).map((id) => svc.songs.find((x) => x.id === id)).filter(Boolean),
-  );
-  const total = serviceSetDurationSec(svc);
-  const roles = svc.teams.flatMap((t) => t.roles);
-  const confirmed = roles.filter((r) => r.status === "ok").length;
-
-  return (
-    <>
-      <Card>
-        <Label>The one thing this {weekdayName(svc.date)}</Label>
-        <div className="mt-3 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-lg bg-cream-200/60 p-3">
-            <div className="text-xs font-semibold text-charcoal-500">Scripture anchor</div>
-            <EditableText
-              value={svc.scripture}
-              onCommit={(v) => patch((p) => ({ ...p, scripture: v }))}
-            />
-            <div className="mt-3 text-xs font-semibold text-charcoal-500">Theme</div>
-            <EditableText value={svc.theme} onCommit={(v) => patch((p) => ({ ...p, theme: v }))} />
-          </div>
-          <div className="rounded-lg bg-cream-200/60 p-3">
-            <div className="text-xs font-semibold text-charcoal-500">The one takeaway</div>
-            <EditableText
-              multiline
-              value={svc.oneThing}
-              onCommit={(v) => patch((p) => ({ ...p, oneThing: v }))}
-            />
-          </div>
-        </div>
-      </Card>
-
-      <Card>
-        <div className="flex items-center justify-between">
-          <Label>The worship set</Label>
-          <span className="text-sm text-charcoal-400">{fmtDuration(total)}</span>
-        </div>
-        <div className="mt-4 space-y-2">
-          {songs.length === 0 && (
-            <div className="rounded-lg border border-dashed border-charcoal-200 px-3 py-4 text-center text-sm text-charcoal-400">
-              No songs yet. Build the set to add them.
-            </div>
-          )}
-          {songs.map(
-            (s) =>
-              s && (
-                <div
-                  key={s.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-charcoal-100 px-3 py-2"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-charcoal-800">
-                      {s.title}
-                    </div>
-                    <div className="truncate text-xs text-charcoal-400">
-                      {s.artist} · {s.flow}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <Tag on={s.chartSource !== "none"}>Chart</Tag>
-                    <Tag on={Boolean(s.multitracksUrl)}>Stems</Tag>
-                    <KeyBadge k={s.serviceKey} />
-                  </div>
-                </div>
-              ),
-          )}
-        </div>
-        <Link
-          href="/set"
-          className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-coral-600 hover:underline"
-        >
-          Build the set <Icon name="arrowRight" size={14} />
-        </Link>
-      </Card>
-
-      <Card>
-        <div className="flex items-center justify-between">
-          <Label>The team this {weekdayName(svc.date)}</Label>
-          <Link href="/team" className="text-xs font-semibold text-coral-600 hover:underline">
-            Manage roster
-          </Link>
-        </div>
-        <p className="mt-1 text-sm text-charcoal-400">
-          {confirmed} of {roles.length} roles confirmed. Select a name to cycle confirmed, awaiting, open.
-        </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          {svc.teams.map((team) => (
-            <div key={team.id}>
-              <div className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: team.color }} />
-                <span className="text-sm font-bold text-charcoal-900">{team.name}</span>
-              </div>
-              <div className="mt-2 space-y-1.5">
-                {team.roles.map((r) => (
-                  <button
-                    key={r.id}
-                    onClick={() =>
-                      patch((p) => ({
-                        ...p,
-                        teams: p.teams.map((t) =>
-                          t.id === team.id
-                            ? {
-                                ...t,
-                                roles: t.roles.map((x) =>
-                                  x.id === r.id ? { ...x, status: ROLE_CYCLE[x.status] } : x,
-                                ),
-                              }
-                            : t,
-                        ),
-                      }))
-                    }
-                    title="Click to advance"
-                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-charcoal-100 px-2.5 py-1.5 text-left transition hover:border-coral-300"
-                  >
-                    <span className="min-w-0">
-                      <span className="block text-xs font-semibold text-charcoal-800">
-                        {r.person || "Unassigned"}
-                      </span>
-                      <span className="block text-[11px] text-charcoal-400">{r.position}</span>
-                    </span>
-                    <span className="shrink-0">
-                      <RoleDot status={r.status} />
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      <Card>
-        <Label>Communications to send</Label>
-        <div className="mt-4 space-y-2">
-          {svc.comms.map((c) => (
-            <div
-              key={c.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-charcoal-100 px-3 py-2.5"
-            >
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-charcoal-800">{c.title}</div>
-                <div className="text-xs text-charcoal-400">
-                  {c.audience} · by {c.deadline}
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <Pill
-                  status={c.status}
-                  text={c.status === "sent" ? "Sent" : c.status === "draft" ? "Drafted" : "To do"}
-                />
-                <button
-                  onClick={() =>
-                    patch((p) => ({
-                      ...p,
-                      comms: p.comms.map((x) =>
-                        x.id === c.id ? { ...x, status: COMM_CYCLE[x.status] } : x,
-                      ),
-                    }))
-                  }
-                  className="rounded-lg border border-charcoal-200 px-3 py-1.5 text-xs font-semibold text-charcoal-600 transition hover:border-coral-400 hover:text-coral-600"
-                >
-                  {c.status === "todo" ? "Draft" : c.status === "draft" ? "Review" : "Reopen"}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-        <p className="mt-3 text-xs text-charcoal-400">
-          Sending email to your team comes online with accounts. For now, draft them here.
-        </p>
-      </Card>
-    </>
   );
 }
 
@@ -1003,26 +919,28 @@ function NewServiceSetup({
   );
 }
 
-function Tag({ on, children }: { on: boolean; children: React.ReactNode }) {
-  return (
-    <span
-      className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-        on ? "bg-ok-tint text-ok-ink" : "bg-cream-200 text-charcoal-300"
-      }`}
-    >
-      {children}
-    </span>
-  );
-}
-
-function RoleDot({ status }: { status: RoleStatus }) {
-  return <span className="h-2.5 w-2.5 rounded-full block" style={{ background: ROLE_DOT[status] }} />;
-}
-
 // ---------------- Prep ----------------
 function Prep({ svc, patch }: { svc: Service; patch: (fn: (s: Service) => Service) => void }) {
   return (
     <div data-coach="prep" className="space-y-6">
+      {svc.live && (
+        <Link
+          href="/live/debrief"
+          className="group flex items-center justify-between rounded-xl border border-charcoal-100 bg-cream-200/40 p-4 transition hover:border-coral-300"
+        >
+          <div>
+            <Label>Sunday&rsquo;s debrief</Label>
+            <p className="mt-1 text-sm text-charcoal-600">
+              Planned vs actual from Live mode, ready for the staff conversation.
+            </p>
+          </div>
+          <Icon
+            name="arrowRight"
+            size={16}
+            className="shrink-0 text-charcoal-400 group-hover:text-coral-600"
+          />
+        </Link>
+      )}
       <Card>
         <Label>Execution · what to rehearse</Label>
         <div className="mt-3">

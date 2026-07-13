@@ -51,7 +51,7 @@ const ROUTES: { href: string; label: string; icon: string; keywords: string; hin
   { href: "/quick", label: "The 15-minute plan", icon: "sparkle", keywords: "quick plan fast fifteen 15 minute wizard flow" },
   { href: "/live", label: "Sunday Live", icon: "music", keywords: "live sunday morning running order stage stand go" },
   { href: "/live/debrief", label: "Sunday debrief", icon: "check", keywords: "debrief review how did it go actual planned staff evaluate" },
-  { href: "/plan", label: "Plan the service", icon: "check", keywords: "plan pray prep loop service" },
+  { href: "/plan", label: "The guided loop (Pray · Plan · Prep)", icon: "check", keywords: "plan pray prep loop service guided" },
   { href: "/set", label: "Worship set", icon: "music", keywords: "set songs order setlist build" },
   { href: "/team", label: "Team for this Sunday", icon: "users", keywords: "team roster assign roles fill" },
   { href: "/rehearse", label: "Rehearsal", icon: "check", keywords: "rehearse rehearsal practice run" },
@@ -126,6 +126,17 @@ export function CommandPalette() {
   // ---- build the item list ----
   const items = useMemo<PaletteItem[]>(() => {
     const out: PaletteItem[] = [];
+
+    // ONE entry point for planning — the mode picks the method.
+    out.push({
+      id: "act:plan-this",
+      group: "Go to",
+      label: "Plan this service",
+      hint: mode === "fast" ? "the 15-minute plan" : "the guided loop",
+      icon: "sparkle",
+      keywords: "plan this service start planning sunday method",
+      run: () => go(mode === "fast" ? "/quick" : "/plan?tab=pray"),
+    });
 
     for (const r of ROUTES) {
       out.push({

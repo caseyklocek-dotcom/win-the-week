@@ -308,6 +308,10 @@ export default function QuickPlanPage() {
           <p className="text-sm text-charcoal-400">
             {fullDate(svc.date)}
             {svc.title ? ` · ${svc.title}` : ""}
+            {" · "}
+            <Link href="/plan?tab=pray" className="font-semibold text-coral-600 hover:underline">
+              prefer the guided loop?
+            </Link>
           </p>
         </div>
         <span

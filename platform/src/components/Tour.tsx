@@ -26,7 +26,7 @@ const STEPS: Step[] = [
     body: "Every Sunday you're leading shows up right here. Start each week from this screen.",
   },
   {
-    route: "/plan?tab=schedule",
+    route: "/plan",
     selector: '[data-tour="plan-loop"]',
     title: "Plan in five hours",
     body: "Each service moves through Pray, Plan, and Prep across five focused hours. Tap “Walk me through it” and a coach guides you hour by hour.",

@@ -12,6 +12,7 @@
 
 import Link from "next/link";
 import { useStore } from "@/lib/store";
+import { profileMode } from "@/lib/mode";
 import { KeyBadge, ProgressBar } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { ServiceSwitcher } from "@/components/ServiceSwitcher";
@@ -90,7 +91,7 @@ function nextStep(
   if (open) return { label: `fill the ${open.position} slot`, href: "/team" };
   if (awaiting)
     return { label: `nudge ${awaiting.person.split(" ")[0] || "the team"}`, href: "/team" };
-  if (svc.status.plan !== "done") return { label: "finish the plan", href: "/plan?tab=plan" };
+  if (svc.status.plan !== "done") return { label: "finish the plan", href: "/plan" };
   if (svc.status.prep !== "done") return { label: "run your prep", href: "/plan?tab=prep" };
   return { label: "send the packet", href: "/packet" };
 }
@@ -308,11 +309,13 @@ export default function Dashboard() {
             </Link>
           ) : (
             doneCount < 3 && (
+              // ONE way in — the mode decides the method. Guided walks the
+              // coached loop; Fast opens the 15-minute plan.
               <Link
-                href="/quick"
+                href={profileMode(state.profile) === "fast" ? "/quick" : "/plan?tab=pray"}
                 className="hidden items-center gap-1.5 rounded-full bg-coral-500 px-4 py-2 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition-colors hover:bg-coral-600 sm:flex"
               >
-                <Icon name="sparkle" size={15} /> 15-Minute Plan
+                <Icon name="sparkle" size={15} /> Plan this service
               </Link>
             )
           )}
@@ -337,7 +340,7 @@ export default function Dashboard() {
                 : "bg-cream-200"
             }`}
           />
-          <LoopNode label="Plan" status={stageStatus("plan")} href="/plan?tab=plan" />
+          <LoopNode label="Plan" status={stageStatus("plan")} href="/plan" />
           {doneCount < 3 && (
             <Link
               href={next.href}
