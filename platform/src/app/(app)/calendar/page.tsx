@@ -250,7 +250,7 @@ export default function CalendarPage() {
               </div>
               <button
                 onClick={createForDate}
-                className="rounded-lg bg-coral-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-coral-600"
+                className="rounded-full bg-coral-500 px-4 py-2 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition hover:bg-coral-600"
               >
                 Create + open
               </button>

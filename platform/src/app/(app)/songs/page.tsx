@@ -352,7 +352,8 @@ function SongsPageInner() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="headline text-charcoal-900">SONGS</h1>
+          <p className="label text-coral-600">Your library</p>
+          <h1 className="headline mt-1.5 text-3xl text-charcoal-900 lg:text-4xl">SONGS</h1>
           <p className="mt-1 text-sm text-charcoal-400">
             Your reusable library. Every song in one place, ready to drop into any set.
           </p>
@@ -369,7 +370,7 @@ function SongsPageInner() {
 
       {/* Search + add */}
       <div data-tour="songs" className="flex flex-wrap items-center gap-3">
-        <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-charcoal-200 bg-white px-3 py-2 focus-within:border-coral-400">
+        <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-charcoal-100 bg-white px-3 py-2 focus-within:border-coral-400">
           <Icon name="music" size={16} className="text-charcoal-400" />
           <input
             value={q}
@@ -380,7 +381,7 @@ function SongsPageInner() {
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-coral-500 px-4 py-2 text-sm font-semibold text-white shadow-[var(--shadow-coral)] transition-colors hover:bg-coral-600"
+          className="inline-flex items-center gap-1.5 rounded-full bg-coral-500 px-4 py-2 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition-colors hover:bg-coral-600"
         >
           <Icon name="plus" size={16} /> New song
         </button>
@@ -390,10 +391,12 @@ function SongsPageInner() {
       <LibraryImport />
 
       {songLibrary.length === 0 ? (
-        <p className="border-t border-charcoal-100 py-8 text-center text-sm text-charcoal-500">
-          Nothing here yet. Add your first song, or build a set and it&apos;ll land here
-          automatically.
-        </p>
+        <div className="border-t border-charcoal-100 py-10 text-center">
+          <p className="text-sm font-semibold text-charcoal-500">Your library is empty — for now.</p>
+          <p className="mt-1 text-sm text-charcoal-400">
+            Drop a chart above and it becomes a song in seconds, or start one by hand.
+          </p>
+        </div>
       ) : results.length === 0 ? (
         <p className="border-t border-charcoal-100 py-8 text-center text-sm text-charcoal-400">
           No songs match that search.
