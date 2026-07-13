@@ -345,23 +345,36 @@ function ScheduleFold({
   const [open, setOpen] = useState(false);
   const banked = Object.values(svc.loopSeconds ?? {}).reduce((a, b) => a + b, 0);
   return (
-    <div className="border-t border-charcoal-100 pt-4">
+    <div className="pt-2">
+      {/* An obvious control, not a caption — bordered surface, hover, and an
+          explicit Open/Hide with the chevron in a chip. */}
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-3 text-left"
+        className={`group flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3.5 text-left transition-colors ${
+          open
+            ? "border-charcoal-200 bg-cream-200/60"
+            : "border-charcoal-100 bg-cream-200/30 hover:border-charcoal-200 hover:bg-cream-200/60"
+        }`}
       >
-        <div>
-          <Label>The 5-hour schedule</Label>
-          <p className="mt-0.5 text-sm text-charcoal-400">
-            The full framework, hour by hour{banked > 0 ? ` · ${Math.round(banked / 60)} min banked` : ""}
-          </p>
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-charcoal-500 shadow-sm transition-colors group-hover:text-coral-600">
+            <Icon name="clock" size={16} />
+          </span>
+          <div>
+            <div className="text-sm font-bold text-charcoal-900">The 5-hour schedule</div>
+            <p className="text-xs text-charcoal-400">
+              The full framework, hour by hour
+              {banked > 0 ? ` · ${Math.round(banked / 60)} min banked` : ""}
+            </p>
+          </div>
         </div>
-        <Icon
-          name={open ? "chevronUp" : "chevronDown"}
-          size={16}
-          className="shrink-0 text-charcoal-400"
-        />
+        <span className="flex shrink-0 items-center gap-1.5 text-xs font-bold text-charcoal-500 transition-colors group-hover:text-coral-600">
+          {open ? "Hide" : "Open"}
+          <span className="flex h-6 w-6 items-center justify-center rounded-full border border-charcoal-100 bg-white transition-colors group-hover:border-coral-300">
+            <Icon name={open ? "chevronUp" : "chevronDown"} size={14} />
+          </span>
+        </span>
       </button>
       {open && (
         <div className="mt-4">
