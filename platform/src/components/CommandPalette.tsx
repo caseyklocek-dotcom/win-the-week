@@ -58,6 +58,7 @@ const ROUTES: { href: string; label: string; icon: string; keywords: string; hin
   { href: "/calendar", label: "Calendar & runway", icon: "calendar", keywords: "calendar runway weeks 8 four three two one schedule" },
   { href: "/songs", label: "Song library", icon: "music", keywords: "songs library catalog music charts" },
   { href: "/people", label: "People", icon: "users", keywords: "people team members contacts volunteers" },
+  { href: "/reports", label: "Reports", icon: "target", keywords: "reports rotation serving load burnout pastor export csv insights analytics import" },
   { href: "/invest", label: "Invest your week", icon: "target", keywords: "invest grow growth long game develop" },
   { href: "/invest/compass", label: "Leader Compass", icon: "target", keywords: "compass assessment eight areas leadership invest" },
   { href: "/invest/leaders", label: "Leaders On Deck", icon: "users", keywords: "leaders on deck bench develop raise track invest" },

@@ -60,6 +60,39 @@ export function buildServiceIcs(opts: {
   ].join("\r\n");
 }
 
+/** A whole season of services as one calendar file (multiple VEVENTs). */
+export function buildServicesIcs(
+  services: { dateIso: string; title: string; description?: string }[],
+  serviceTime: string,
+  durationMinutes = 90,
+): string {
+  const [h, m] = parseServiceTime(serviceTime);
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
+  const events = services.flatMap((s) => {
+    const [y, mo, d] = s.dateIso.split("-").map(Number);
+    const start = `${y}${pad(mo)}${pad(d)}T${pad(h)}${pad(m)}00`;
+    const endMinutes = h * 60 + m + durationMinutes;
+    const end = `${y}${pad(mo)}${pad(d)}T${pad(Math.floor(endMinutes / 60) % 24)}${pad(endMinutes % 60)}00`;
+    return [
+      "BEGIN:VEVENT",
+      `UID:wtw-${s.dateIso}-${Math.random().toString(36).slice(2, 8)}`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART:${start}`,
+      `DTEND:${end}`,
+      `SUMMARY:${icsEscape(s.title)}`,
+      ...(s.description ? [`DESCRIPTION:${icsEscape(s.description)}`] : []),
+      "END:VEVENT",
+    ];
+  });
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Win the Week//Services//EN",
+    ...events,
+    "END:VCALENDAR",
+  ].join("\r\n");
+}
+
 export function downloadIcs(filename: string, ics: string) {
   const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
   const href = URL.createObjectURL(blob);

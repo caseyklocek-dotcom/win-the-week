@@ -31,10 +31,15 @@ type NavItem = {
 
 const NAV: NavItem[] = [
   { href: "/", label: "This Sunday" },
-  { href: "/plan", label: "Plan", match: ["/plan", "/set", "/team", "/rehearse", "/packet"] },
+  {
+    href: "/plan",
+    label: "Plan",
+    match: ["/plan", "/set", "/team", "/rehearse", "/send", "/packet", "/quick"],
+  },
   { href: "/calendar", label: "Calendar" },
   { href: "/songs", label: "Songs" },
   { href: "/people", label: "People" },
+  { href: "/reports", label: "Reports" },
   { href: "/invest", label: "Invest", invest: true, match: ["/invest", "/tools", "/community"] },
 ];
 
