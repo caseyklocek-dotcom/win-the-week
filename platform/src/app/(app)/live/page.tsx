@@ -39,6 +39,7 @@ interface LiveRow {
 
 function liveRows(svc: Service): LiveRow[] {
   const out: LiveRow[] = [];
+  let n = 0; // running index — a song can appear twice (reprise), so keys need it
   for (const sec of svc.setSections) {
     for (const row of sec.rows ?? []) {
       const title = rowTitle(row, svc);
@@ -54,7 +55,7 @@ function liveRows(svc: Service): LiveRow[] {
             .join(" · ")
         : fmtDuration(rowDurationSec(row, svc));
       out.push({
-        key: `${sec.id}-${row.refId}`,
+        key: `${sec.id}-${row.refId}-${n++}`,
         title,
         durationSec: rowDurationSec(row, svc),
         song,

@@ -108,7 +108,18 @@ export default function ReportsPage() {
       for (let i = p.served.length - 1; i >= 0 && p.served[i]; i--) streak++;
       return { ...p, total: p.served.filter(Boolean).length, streak };
     });
-    return rows.sort((a, b) => b.streak - a.streak || b.total - a.total).slice(0, 8);
+    const sorted = rows.sort((a, b) => b.streak - a.streak || b.total - a.total).slice(0, 8);
+    // Burnout flags only mean something RELATIVE to the team's rhythm. In a
+    // small church where everyone serves weekly, flagging the whole roster is
+    // noise — so flag only people clearly above the team's median streak, and
+    // fall back to one gentle team-wide line when serving-weekly is the norm.
+    const streaks = sorted.map((r) => r.streak).sort((a, b) => a - b);
+    const median = streaks.length ? streaks[Math.floor(streaks.length / 2)] : 0;
+    const flagged = new Set(
+      sorted.filter((r) => r.streak >= 4 && r.streak >= median + 2).map((r) => r.name),
+    );
+    const wholeTeamRuns = flagged.size === 0 && median >= Math.min(6, recent8.length) && sorted.length > 1;
+    return { rows: sorted, flagged, wholeTeamRuns };
   }, [recent8, people]);
 
   // ---- Prep consistency (past 12) ----
@@ -319,37 +330,53 @@ export default function ReportsPage() {
               Team serving load · recent {recent8.length} services
             </h2>
             <div className="mt-2">
-              {load.map((p) => (
-                <div key={p.name} className="flex items-center gap-3 border-b border-cream-200 py-2.5 text-sm">
-                  <span className="min-w-0 flex-1 truncate font-semibold text-charcoal-800">
-                    {p.name}
-                  </span>
-                  {p.streak >= 4 && (
-                    <span
-                      className="rounded-full bg-wait-tint px-2.5 py-1 text-[10.5px] font-bold text-wait-ink"
-                      title="Serving many weeks in a row — worth a rest soon"
-                    >
-                      {p.streak} straight · protect them
+              {load.rows.map((p) => {
+                const hot = load.flagged.has(p.name);
+                return (
+                  <div
+                    key={p.name}
+                    className="flex items-center gap-3 border-b border-cream-200 py-2.5 text-sm"
+                  >
+                    <span className="min-w-0 flex-1 truncate font-semibold text-charcoal-800">
+                      {p.name}
                     </span>
-                  )}
-                  <span className="flex gap-1">
-                    {p.served.map((on, i) => (
+                    {hot && (
                       <span
-                        key={i}
-                        className={`h-2.5 w-2.5 rounded-[3px] ${
-                          on
-                            ? p.streak >= 4 && i >= p.served.length - p.streak
-                              ? "bg-wait-bar"
-                              : "bg-teal-500"
-                            : "bg-cream-200"
-                        }`}
-                      />
-                    ))}
-                  </span>
-                </div>
-              ))}
-              {load.length === 0 && (
+                        className="rounded-full bg-wait-tint px-2.5 py-1 text-[10.5px] font-bold text-wait-ink"
+                        title="Serving well beyond the team's rhythm — worth a rest soon"
+                      >
+                        {p.streak} straight · protect them
+                      </span>
+                    )}
+                    <span className="flex gap-1">
+                      {p.served.map((on, i) => (
+                        <span
+                          key={i}
+                          className={`h-2.5 w-2.5 rounded-[3px] ${
+                            on
+                              ? hot && i >= p.served.length - p.streak
+                                ? "bg-wait-bar"
+                                : "bg-teal-500"
+                              : "bg-cream-200"
+                          }`}
+                        />
+                      ))}
+                    </span>
+                  </div>
+                );
+              })}
+              {load.rows.length === 0 && (
                 <p className="py-2 text-sm text-charcoal-400">No one scheduled recently.</p>
+              )}
+              {load.wholeTeamRuns && (
+                <p className="mt-3 text-xs text-charcoal-500">
+                  <span className="rounded-full bg-wait-tint px-2.5 py-1 font-bold text-wait-ink">
+                    The whole team serves nearly every week
+                  </span>
+                  <span className="ml-2 text-charcoal-400">
+                    Normal for a small church — a planned off-week blesses everyone at once.
+                  </span>
+                </p>
               )}
             </div>
           </section>

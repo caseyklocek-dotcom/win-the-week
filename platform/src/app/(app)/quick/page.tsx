@@ -570,7 +570,9 @@ export default function QuickPlanPage() {
                   <Icon
                     name="check"
                     size={15}
-                    className={roles.length && !openRoles ? "text-ok-bar" : "text-charcoal-200"}
+                    className={
+                      confirmed > 0 && !openRoles ? "text-ok-bar" : "text-charcoal-200"
+                    }
                   />
                   <span className="text-charcoal-800">
                     {confirmed} of {roles.length} team confirmed
