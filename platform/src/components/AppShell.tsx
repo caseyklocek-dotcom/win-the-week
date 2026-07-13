@@ -79,9 +79,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { state, setState } = useStore();
   const cmdLabel = useCmdLabel();
 
+  // Guided vs Fast still drives routing + coaching; the CHOICE now lives on
+  // Profile (a bare top-bar switch was cryptic). We only read it here.
   const mode = profileMode(state.profile);
-  const setMode = (m: "guided" | "fast") =>
-    setState((s) => ({ ...s, profile: { ...s.profile, mode: m } }));
 
   const initials = state.profile.name
     .split(" ")
@@ -149,33 +149,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               <Icon name="search" size={18} />
             </button>
-
-            {/* Guided / Fast mode */}
-            <div
-              className="hidden items-center rounded-full border border-charcoal-100 p-0.5 lg:flex"
-              role="group"
-              aria-label="Experience mode"
-            >
-              {(["guided", "fast"] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMode(m)}
-                  aria-pressed={mode === m}
-                  title={
-                    m === "guided"
-                      ? "Guided: step-by-step with coaching"
-                      : "Fast: one screen, keyboard-first"
-                  }
-                  className={`rounded-full px-3 py-1 text-[11px] font-bold capitalize transition-colors ${
-                    mode === m
-                      ? "bg-charcoal-800 text-white"
-                      : "text-charcoal-400 hover:text-charcoal-700"
-                  }`}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
 
             <div className="hidden lg:block">
               <ThemeToggle size="sm" />

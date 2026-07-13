@@ -8,6 +8,7 @@ import { EditableText } from "@/components/fields";
 import { Icon } from "@/components/Icon";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { PLAN_META, trialDaysLeft } from "@/lib/plan";
+import { profileMode } from "@/lib/mode";
 import type { PlanTier, Profile } from "@/lib/types";
 
 // Move an item within an array from one index to another.
@@ -178,10 +179,57 @@ export default function ProfilePage() {
 
       {/* How you plan */}
       <Card>
-        <Label>How you plan</Label>
+        <Label>How you like to plan</Label>
+        <p className="mt-1 text-xs text-charcoal-400">
+          This sets what &ldquo;Plan this service&rdquo; opens and how much the app coaches you.
+        </p>
+        <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+          {(
+            [
+              {
+                m: "guided" as const,
+                title: "Guided",
+                desc: "Step-by-step through Pray · Plan · Prep, with coaching along the way.",
+              },
+              {
+                m: "fast" as const,
+                title: "Fast",
+                desc: "The 15-minute plan — one screen, keyboard-first, no hand-holding.",
+              },
+            ]
+          ).map(({ m, title, desc }) => {
+            const on = profileMode(profile) === m;
+            return (
+              <button
+                key={m}
+                onClick={() => patchProfile({ mode: m })}
+                aria-pressed={on}
+                className={`rounded-xl border p-3.5 text-left transition-colors ${
+                  on
+                    ? "border-coral-400 bg-coral-50"
+                    : "border-charcoal-100 hover:border-charcoal-200 hover:bg-cream-100"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-charcoal-900">{title}</span>
+                  <span
+                    className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                      on ? "border-coral-500 bg-coral-500" : "border-charcoal-200"
+                    }`}
+                  >
+                    {on && <Icon name="check" size={10} strokeWidth={3} className="text-white" />}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-charcoal-500">{desc}</p>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 border-t border-charcoal-100 pt-4" />
         <button
           onClick={() => patchProfile({ planningCenterMode: !profile.planningCenterMode })}
-          className="mt-3 flex w-full items-center justify-between gap-4 text-left"
+          className="flex w-full items-center justify-between gap-4 text-left"
           role="switch"
           aria-checked={profile.planningCenterMode === true}
         >
