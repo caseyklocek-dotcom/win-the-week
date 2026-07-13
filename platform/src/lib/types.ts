@@ -294,6 +294,20 @@ export interface Service {
   // Published packet per person (personId or a name key) for THIS service —
   // powers the Send board: who got a link, when, and lets responses resolve.
   sentPackets?: Record<string, { token: string; sentAt: string; personName: string }>;
+  // What actually happened on Sunday morning — written by Live mode, read by
+  // the debrief (planned vs actual, staff conversation).
+  live?: LiveLog;
+}
+
+// ---- Sunday Live actuals ----
+// items is an append-only sequence of "what was on screen when": one entry per
+// transition (advance, back, or jump). Actual time per item = the gap to the
+// next entry; the debrief aggregates repeated visits by title.
+export interface LiveLog {
+  startedAt: string; // ISO
+  items: { title: string; plannedSec: number; startedAt: string }[];
+  endedAt?: string; // ISO
+  reflection?: string;
 }
 
 // ---- Rehearsal Planner (per service) ----

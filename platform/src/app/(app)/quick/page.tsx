@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { profileMode } from "@/lib/mode";
 import { rankSuggestions } from "@/lib/suggest";
+import { lastSundayNote } from "@/lib/reflect";
 import { songFromLibrary } from "@/lib/library";
 import { sectionSongIds, serviceSetDurationSec } from "@/lib/set";
 import { fmtDuration, weekdayName } from "@/lib/music";
@@ -394,6 +395,19 @@ export default function QuickPlanPage() {
 
           {step === "heart" && (
             <div className="space-y-5">
+              {(() => {
+                const last = lastSundayNote(state.services, svc.date);
+                return (
+                  last && (
+                    <div className="border-l-2 border-coral-400 pl-4">
+                      <p className="label text-coral-600">From last Sunday</p>
+                      <p className="editorial mt-1 text-[15px] text-charcoal-700">
+                        &ldquo;{last.note}&rdquo;
+                      </p>
+                    </div>
+                  )
+                );
+              })()}
               <h2 className="label text-charcoal-400">The heart of this Sunday</h2>
               {(
                 [

@@ -50,6 +50,7 @@ const ROUTES: { href: string; label: string; icon: string; keywords: string; hin
   { href: "/", label: "This Sunday", icon: "home", keywords: "home dashboard today overview" },
   { href: "/quick", label: "The 15-minute plan", icon: "sparkle", keywords: "quick plan fast fifteen 15 minute wizard flow" },
   { href: "/live", label: "Sunday Live", icon: "music", keywords: "live sunday morning running order stage stand go" },
+  { href: "/live/debrief", label: "Sunday debrief", icon: "check", keywords: "debrief review how did it go actual planned staff evaluate" },
   { href: "/plan", label: "Plan the service", icon: "check", keywords: "plan pray prep loop service" },
   { href: "/set", label: "Worship set", icon: "music", keywords: "set songs order setlist build" },
   { href: "/team", label: "Team for this Sunday", icon: "users", keywords: "team roster assign roles fill" },

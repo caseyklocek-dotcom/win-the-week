@@ -15,13 +15,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import { Icon } from "@/components/Icon";
 import { ChartSheet } from "@/components/ChartSheet";
 import { fmtDuration } from "@/lib/music";
 import { rowTitle, rowDurationSec } from "@/lib/set";
-import type { Service, Song } from "@/lib/types";
+import type { LiveLog, Service, Song } from "@/lib/types";
 
 function fmtClock(sec: number) {
   const m = Math.floor(sec / 60);
@@ -76,6 +76,49 @@ export default function SundayLivePage() {
   const [reflection, setReflection] = useState("");
   const doneAll = idx >= rows.length;
 
+  // ---- timing log: one entry per transition, for the debrief ----
+  // Kept in a ref (no re-render needed) and mirrored to sessionStorage so a
+  // mid-service refresh doesn't lose the morning.
+  const logKey = `wtw_live_log_${svc.id}`;
+  const logRef = useRef<LiveLog | null>(null);
+  useEffect(() => {
+    if (logRef.current || rows.length === 0) return;
+    try {
+      const saved = sessionStorage.getItem(logKey);
+      if (saved) {
+        logRef.current = JSON.parse(saved) as LiveLog;
+        return;
+      }
+    } catch {
+      /* fresh start below */
+    }
+    const now = new Date().toISOString();
+    logRef.current = {
+      startedAt: now,
+      items: [{ title: rows[0].title, plannedSec: rows[0].durationSec, startedAt: now }],
+    };
+    sessionStorage.setItem(logKey, JSON.stringify(logRef.current));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows.length, logKey]);
+
+  const goTo = (i: number) => {
+    if (i === idx || i < 0 || i > rows.length) return;
+    setIdx(i);
+    const log = logRef.current;
+    if (log && i < rows.length) {
+      log.items.push({
+        title: rows[i].title,
+        plannedSec: rows[i].durationSec,
+        startedAt: new Date().toISOString(),
+      });
+      try {
+        sessionStorage.setItem(logKey, JSON.stringify(log));
+      } catch {
+        /* storage full — keep going, the morning matters more */
+      }
+    }
+  };
+
   // Elapsed since Live opened for this service (survives refresh).
   const timerKey = `wtw_live_start_${svc.id}`;
   const [elapsed, setElapsed] = useState(0);
@@ -96,17 +139,27 @@ export default function SundayLivePage() {
   }, [idx]);
 
   const finish = () => {
-    if (reflection.trim()) {
-      updateService(svc.id, (s) => ({
-        ...s,
-        carryForward: s.carryForward
-          ? `${s.carryForward}\n${reflection.trim()}`
-          : reflection.trim(),
-        status: { ...s.status, prep: "done" },
-      }));
-    }
+    const note = reflection.trim();
+    const log = logRef.current;
+    updateService(svc.id, (s) => ({
+      ...s,
+      ...(note
+        ? { carryForward: s.carryForward ? `${s.carryForward}\n${note}` : note }
+        : {}),
+      status: { ...s.status, prep: "done" },
+      ...(log
+        ? {
+            live: {
+              ...log,
+              endedAt: new Date().toISOString(),
+              ...(note ? { reflection: note } : {}),
+            },
+          }
+        : {}),
+    }));
     sessionStorage.removeItem(timerKey);
-    router.push("/");
+    sessionStorage.removeItem(logKey);
+    router.push(log ? "/live/debrief" : "/");
   };
 
   const current = rows[idx];
@@ -147,7 +200,7 @@ export default function SundayLivePage() {
               return (
                 <div key={row.key}>
                   <button
-                    onClick={() => setIdx(i)}
+                    onClick={() => goTo(i)}
                     className={`w-full text-left transition ${
                       isNow
                         ? "my-2.5 rounded-2xl bg-gradient-to-br from-[#2b2320] to-[#33241f] px-4 py-4"
@@ -226,7 +279,7 @@ export default function SundayLivePage() {
                 {reflection.trim() ? "Save & finish" : "Finish"}
               </button>
               <button
-                onClick={() => setIdx(rows.length - 1)}
+                onClick={() => goTo(rows.length - 1)}
                 className="rounded-full border border-[#3d3a34] px-5 py-3.5 text-sm font-semibold text-[#b0aca6]"
               >
                 Back
@@ -236,16 +289,26 @@ export default function SundayLivePage() {
         )}
       </div>
 
-      {/* the big Next */}
+      {/* the big Next (+ a way back for a stray tap) */}
       {!doneAll && rows.length > 0 && (
         <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-[#1a1a1a] via-[#1a1a1a]/95 to-transparent px-5 pb-6 pt-8">
-          <button
-            onClick={() => setIdx((i) => i + 1)}
-            className="mx-auto flex w-full max-w-md items-center justify-center gap-2 rounded-full bg-[#ff6b5e] px-6 py-4 text-base font-extrabold text-[#ffffff] shadow-[0_10px_30px_-8px_rgba(255,107,94,0.5)]"
-          >
-            {idx === rows.length - 1 ? "That's a wrap" : "Next"}{" "}
-            <Icon name="arrowRight" size={18} />
-          </button>
+          <div className="mx-auto flex w-full max-w-md items-center gap-2.5">
+            <button
+              onClick={() => goTo(idx - 1)}
+              disabled={idx === 0}
+              aria-label="Back one item"
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[#3d3a34] text-[#b0aca6] transition disabled:opacity-30"
+            >
+              <Icon name="arrowRight" size={18} className="rotate-180" />
+            </button>
+            <button
+              onClick={() => goTo(idx + 1)}
+              className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#ff6b5e] px-6 py-4 text-base font-extrabold text-[#ffffff] shadow-[0_10px_30px_-8px_rgba(255,107,94,0.5)]"
+            >
+              {idx === rows.length - 1 ? "That's a wrap" : "Next"}{" "}
+              <Icon name="arrowRight" size={18} />
+            </button>
+          </div>
         </div>
       )}
     </div>
