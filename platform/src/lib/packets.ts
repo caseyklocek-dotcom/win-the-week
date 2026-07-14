@@ -16,18 +16,33 @@
 // leader's Send board.
 // ============================================================
 
-import type { Service, Person, Profile, Song } from "./types";
+import type { LibrarySong, Service, Person, Profile, Song } from "./types";
 import { sectionSongIds } from "./set";
 import { supabase } from "./supabase";
 
 // The set's songs in running order (flattened across sections), skipping any
-// referenced song that no longer exists.
-function orderedSongs(service: Service): Song[] {
+// referenced song that no longer exists. When the library is provided, each
+// song is enriched with catalog link data it's missing — a YouTube link added
+// to the library AFTER the song landed in a set still reaches the team.
+function orderedSongs(service: Service, library?: LibrarySong[]): Song[] {
   const byId = new Map(service.songs.map((s) => [s.id, s]));
+  const byLib = new Map((library ?? []).map((l) => [l.id, l]));
   return service.setSections
     .flatMap((sec) => sectionSongIds(sec))
     .map((id) => byId.get(id))
-    .filter((s): s is Song => Boolean(s));
+    .filter((s): s is Song => Boolean(s))
+    .map((s) => {
+      const lib = s.libraryId ? byLib.get(s.libraryId) : undefined;
+      if (!lib) return s;
+      return {
+        ...s,
+        multitracksUrl: s.multitracksUrl || lib.multitracksUrl,
+        songSelectUrl: s.songSelectUrl || lib.songSelectUrl,
+        youtubeUrl: s.youtubeUrl || lib.youtubeUrl,
+        spotifyUrl: s.spotifyUrl || lib.spotifyUrl,
+        ccli: s.ccli || lib.ccli,
+      };
+    });
 }
 
 // A volunteer either says yes or no. "pending" is the absence of a response.
@@ -97,7 +112,14 @@ export function buildPacket(
   service: Service,
   person: Person,
   profile: Profile,
-  opts?: { teamNote?: string; personalNote?: string; ccliNumber?: string },
+  opts?: {
+    teamNote?: string;
+    personalNote?: string;
+    ccliNumber?: string;
+    // Pass the song library so packets pick up links (YouTube, Spotify…)
+    // added to the catalog after a song was already placed in the set.
+    library?: LibrarySong[];
+  },
 ): ServicePacket {
   const assignment =
     service.teams
@@ -123,7 +145,7 @@ export function buildPacket(
     person: { id: person.id, name: person.name, assignment },
     teamNote: opts?.teamNote,
     personalNote: opts?.personalNote,
-    songs: orderedSongs(service),
+    songs: orderedSongs(service, opts?.library),
   };
 }
 

@@ -67,7 +67,7 @@ function boardPeople(svc: Service, people: Person[]): BoardPerson[] {
 }
 
 export default function SendPage() {
-  const { state, activeService: svc, people, updateService } = useStore();
+  const { state, activeService: svc, people, songLibrary, updateService } = useStore();
 
   const roster = useMemo(() => boardPeople(svc, people), [svc, people]);
   const sent = svc.sentPackets ?? {};
@@ -101,6 +101,7 @@ export default function SendPage() {
         ({ id: bp.key, name: bp.name, roles: bp.assignments, active: true } as Person);
       const packet = buildPacket(svc, person, state.profile, {
         teamNote: teamNote.trim() || undefined,
+        library: songLibrary, // pick up practice links added after set-building
       });
       if (already) packet.token = already.token; // stable links on rebuild
       await publishPacket(packet);

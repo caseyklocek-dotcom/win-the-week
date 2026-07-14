@@ -1,13 +1,18 @@
+"use client";
+
 // ============================================================
-// BrandIcon — small recognizable marks for the places leaders already
+// BrandIcon — recognizable marks for the places leaders already
 // look songs up: CCLI SongSelect, MultiTracks, YouTube, Spotify.
 //
-// YouTube and Spotify use their real, simplified badge marks (both
-// brands' own guidelines encourage exactly this — a small mark next to an
-// "open on X" link). CCLI and MultiTracks don't have a comparable public
-// glyph-only badge, so those two are clean monogram badges in the brand's
-// familiar color rather than an attempt at their wordmark.
+// MultiTracks and CCLI are drawn from the actual marks Casey provided:
+// MultiTracks is the black disc with white track bars sweeping in from the
+// left; CCLI is the two-blue swirl of arcs around a navy "C". YouTube and
+// Spotify use their real simplified badge marks (both brands' guidelines
+// encourage exactly this next to an "open on X" link). All colors are raw
+// hex on purpose — brand marks never flip with the app theme.
 // ============================================================
+
+import { useId } from "react";
 
 export type BrandKey = "ccli" | "multitracks" | "youtube" | "spotify";
 
@@ -20,7 +25,15 @@ export function BrandIcon({
   size?: number;
   className?: string;
 }) {
-  const common = { width: size, height: size, viewBox: "0 0 24 24", className, "aria-hidden": true } as const;
+  // Unique per-instance clip id — several icons can render on one page.
+  const uid = useId();
+  const common = {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    className,
+    "aria-hidden": true,
+  } as const;
 
   switch (brand) {
     case "youtube":
@@ -30,6 +43,7 @@ export function BrandIcon({
           <path d="M10 8.5v7l6.5-3.5Z" fill="#FFFFFF" />
         </svg>
       );
+
     case "spotify":
       return (
         <svg {...common}>
@@ -57,35 +71,49 @@ export function BrandIcon({
           />
         </svg>
       );
-    case "multitracks":
-      // A monogram badge (not the company's wordmark) — a waveform of
-      // staggered bars reads as "multiple tracks" at a glance.
+
+    case "multitracks": {
+      // The real mark: a black disc, white track bars of varying length
+      // sweeping in flush from the left, clipped by the circle.
+      const clipId = `mt-clip-${uid}`;
       return (
         <svg {...common}>
-          <rect x="1" y="1" width="22" height="22" rx="6" fill="#1A1A1A" />
-          <rect x="5.5" y="10" width="2.4" height="4" rx="1.2" fill="#FF6B5E" />
-          <rect x="9.8" y="6.5" width="2.4" height="11" rx="1.2" fill="#FF6B5E" />
-          <rect x="14.1" y="9" width="2.4" height="6" rx="1.2" fill="#FF6B5E" />
-          <rect x="18.4" y="7" width="2.4" height="8" rx="1.2" fill="#FF6B5E" />
+          <defs>
+            <clipPath id={clipId}>
+              <circle cx="12" cy="12" r="11" />
+            </clipPath>
+          </defs>
+          <circle cx="12" cy="12" r="11" fill="#000000" />
+          <g clipPath={`url(#${clipId})`}>
+            <rect x="-2" y="5.2" width="13" height="1.9" rx="0.95" fill="#FFFFFF" />
+            <rect x="-2" y="8.1" width="17.7" height="1.9" rx="0.95" fill="#FFFFFF" />
+            <rect x="-2" y="11" width="22.7" height="1.9" rx="0.95" fill="#FFFFFF" />
+            <rect x="-2" y="13.9" width="20.7" height="1.9" rx="0.95" fill="#FFFFFF" />
+            <rect x="-2" y="16.8" width="16" height="1.9" rx="0.95" fill="#FFFFFF" />
+          </g>
         </svg>
       );
+    }
+
     case "ccli":
-      // A monogram badge in CCLI's familiar blue — clean and identifiable
-      // without reproducing their trademarked wordmark.
+      // The real mark: nested light-blue arcs sweeping above and below a
+      // navy stroke that curls into the central "C".
       return (
-        <svg {...common}>
-          <rect x="1" y="1" width="22" height="22" rx="6" fill="#0B5FA5" />
-          <text
-            x="12"
-            y="16.5"
-            textAnchor="middle"
-            fontSize="11"
-            fontWeight="800"
-            fontFamily="system-ui, sans-serif"
-            fill="#FFFFFF"
-          >
-            CCLI
-          </text>
+        <svg {...common} fill="none" strokeLinecap="round">
+          {/* top sweeps — light blue */}
+          <path d="M2.6 9.5 A9.7 9.7 0 0 1 21.4 9.5" stroke="#29A9E0" strokeWidth="2.1" />
+          <path d="M5.3 10.6 A6.9 6.9 0 0 1 18.7 10.6" stroke="#29A9E0" strokeWidth="2" />
+          {/* the navy C, entering from the upper right */}
+          <path
+            d="M20.6 6.3 Q16.8 7.5 14.5 9.1 A3.7 3.7 0 1 0 14.5 14.9"
+            stroke="#1D4E89"
+            strokeWidth="2.2"
+          />
+          {/* navy tail at the lower left */}
+          <path d="M3.3 17.9 L7.3 15.7" stroke="#1D4E89" strokeWidth="2.2" />
+          {/* bottom sweeps — light blue */}
+          <path d="M5.3 13.4 A6.9 6.9 0 0 0 18.7 13.4" stroke="#29A9E0" strokeWidth="2" />
+          <path d="M2.6 14.5 A9.7 9.7 0 0 0 21.4 14.5" stroke="#29A9E0" strokeWidth="2.1" />
         </svg>
       );
   }

@@ -90,11 +90,17 @@ function buildSummary(svc: Service, people: Person[]): string {
       const title = rowTitle(row, svc);
       if (!title) continue;
       let detail = "";
+      let song;
       if (row.kind === "song") {
-        const song = svc.songs.find((s) => s.id === row.refId);
+        song = svc.songs.find((s) => s.id === row.refId);
         if (song?.serviceKey) detail = ` (${song.serviceKey})`;
       }
       lines.push(`  - ${title}${detail} · ${fmtDuration(rowDurationSec(row, svc))}`);
+      // Practice links ride along so the team can watch or listen right
+      // from the email/text — YouTube and Spotify only (MultiTracks and
+      // SongSelect are leader-side tools).
+      if (song?.youtubeUrl) lines.push(`      Watch: ${song.youtubeUrl}`);
+      if (song?.spotifyUrl) lines.push(`      Listen: ${song.spotifyUrl}`);
     }
   }
 

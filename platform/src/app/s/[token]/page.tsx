@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
+import { BrandIcon } from "@/components/BrandIcon";
 import { ChartSheet } from "@/components/ChartSheet";
 import { ALL_KEYS, fmtDuration } from "@/lib/music";
 import {
@@ -444,7 +445,6 @@ function SongCard({
   withCfg: (s: Song) => Song;
 }) {
   const hasChart = song.chartSource === "builtin" && !!song.chart;
-  const listenUrl = song.multitracksUrl || song.songSelectUrl;
 
   return (
     <div
@@ -540,24 +540,42 @@ function SongCard({
             </p>
           )}
 
-          {/* Notes + listen */}
-          {(song.notes || listenUrl) && (
-            <div className="mt-3 flex items-center justify-between gap-3 border-t border-charcoal-100 pt-3">
-              {song.notes ? (
-                <span className="text-xs text-charcoal-500">{song.notes}</span>
-              ) : (
-                <span />
-              )}
-              {listenUrl && (
+          {/* Practice along — the leader's chosen recording, one tap on the
+              icon itself. Brand marks carry the meaning; no long strips. */}
+          {(song.youtubeUrl || song.spotifyUrl) && (
+            <div className="mt-3 flex items-center gap-3 border-t border-charcoal-100 pt-3">
+              <span className="label text-charcoal-400">Practice along</span>
+              {song.youtubeUrl && (
                 <a
-                  href={listenUrl}
+                  href={song.youtubeUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-coral-600"
+                  title="Watch on YouTube"
+                  aria-label="Watch on YouTube"
+                  className="flex h-11 w-11 items-center justify-center rounded-full transition hover:scale-110 active:scale-95"
                 >
-                  <Icon name="music" size={14} /> Listen
+                  <BrandIcon brand="youtube" size={30} />
                 </a>
               )}
+              {song.spotifyUrl && (
+                <a
+                  href={song.spotifyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Listen on Spotify"
+                  aria-label="Listen on Spotify"
+                  className="flex h-11 w-11 items-center justify-center rounded-full transition hover:scale-110 active:scale-95"
+                >
+                  <BrandIcon brand="spotify" size={30} />
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* Leader's note on this song */}
+          {song.notes && (
+            <div className="mt-3 border-t border-charcoal-100 pt-3">
+              <span className="text-xs text-charcoal-500">{song.notes}</span>
             </div>
           )}
         </div>
