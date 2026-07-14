@@ -16,6 +16,7 @@ import { useStore } from "@/lib/store";
 import { pcsMode, profileMode } from "@/lib/mode";
 import { rankSuggestions } from "@/lib/suggest";
 import { lastSundayNote } from "@/lib/reflect";
+import * as quickTimer from "@/lib/quickTimer";
 import { songFromLibrary } from "@/lib/library";
 import { sectionSongIds, serviceSetDurationSec } from "@/lib/set";
 import { fmtDuration, weekdayName } from "@/lib/music";
@@ -171,27 +172,34 @@ export default function QuickPlanPage() {
   });
   const stepIdx = steps.findIndex((s) => s.key === step);
 
-  // ---- the gentle timer ----
-  // Ticks while the plan is open, FREEZES the moment the plan is finished —
-  // the number's whole job is "how long did it take me to plan a service".
-  // The frozen value lives on the service (planSeconds) and feeds Reports.
-  const timerKey = `wtw_quick_start_${svc.id}`;
+  // ---- the gentle timer — pausable, so an interruption never lies ----
+  // Ticks while running, FREEZES the moment the plan is finished — the
+  // number's whole job is "how long did it take me to plan a service". The
+  // frozen value lives on the service (planSeconds) and feeds Reports.
   const frozen = svc.planSeconds && svc.planSeconds > 0 ? svc.planSeconds : null;
   const [ticking, setTicking] = useState(0);
+  const [running, setRunning] = useState(true);
   useEffect(() => {
     if (frozen) return; // done — nothing to count
-    let start = Number(sessionStorage.getItem(timerKey));
-    if (!start) {
-      start = Date.now();
-      sessionStorage.setItem(timerKey, String(start));
-    }
-    const tick = () => setTicking(Math.floor((Date.now() - start) / 1000));
+    quickTimer.ensureStarted(svc.id);
+    const tick = () => {
+      setTicking(quickTimer.elapsedSec(svc.id) ?? 0);
+      setRunning(quickTimer.isRunning(svc.id));
+    };
     tick();
     const t = setInterval(tick, 1000);
     return () => clearInterval(t);
-  }, [timerKey, frozen]);
+  }, [svc.id, frozen]);
   const elapsed = frozen ?? ticking;
   const onPace = elapsed <= (TARGET_SEC * (stepIdx + 1)) / steps.length;
+
+  const togglePause = () => {
+    if (frozen) return;
+    if (running) quickTimer.pause(svc.id);
+    else quickTimer.resume(svc.id);
+    setRunning(quickTimer.isRunning(svc.id));
+    setTicking(quickTimer.elapsedSec(svc.id) ?? 0);
+  };
 
   // ---- mutations ----
   const patch = (updater: (s: Service) => Service) => updateService(svc.id, updater);
@@ -253,14 +261,13 @@ export default function QuickPlanPage() {
   };
 
   const markPlanDone = () => {
-    const took = frozen ?? ticking;
+    const took = frozen ?? quickTimer.finish(svc.id);
     patch((s) => ({
       ...s,
       status: { ...s.status, plan: "done" },
       // Stamp once — reopening the flow later never overwrites the record.
       ...(s.planSeconds && s.planSeconds > 0 ? {} : { planSeconds: Math.max(1, took) }),
     }));
-    sessionStorage.removeItem(timerKey);
   };
 
   // ---- suggestions + library search ----
@@ -294,7 +301,7 @@ export default function QuickPlanPage() {
               cy="28"
               r="24"
               fill="none"
-              className="stroke-coral-500"
+              className={running ? "stroke-coral-500" : "stroke-charcoal-300"}
               strokeWidth="5"
               strokeLinecap="round"
               pathLength={100}
@@ -306,6 +313,21 @@ export default function QuickPlanPage() {
             {fmtClock(elapsed)}
           </span>
         </div>
+        {!frozen && (
+          <button
+            onClick={togglePause}
+            title={running ? "Pause — planning got interrupted" : "Resume"}
+            aria-pressed={!running}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-charcoal-100 text-charcoal-500 transition hover:border-coral-300 hover:text-coral-600"
+          >
+            <Icon name={running ? "pause" : "play"} size={14} />
+          </button>
+        )}
+        {!running && !frozen && (
+          <span className="rounded-full bg-wait-tint px-2.5 py-1 text-[11px] font-bold text-wait-ink">
+            Paused
+          </span>
+        )}
         <div className="min-w-0">
           <h1 className="headline text-2xl text-charcoal-900">The 15-minute plan</h1>
           <p className="text-sm text-charcoal-400">

@@ -56,6 +56,13 @@ const PATHS: Record<string, React.ReactNode> = {
   upload: <path d="M12 16V4m0 0L8 8m4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />,
   book: <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14Z" />,
   sparkle: <path d="M12 3l1.6 5L19 9.5l-5.4 1.5L12 16l-1.6-5L5 9.5 10.4 8 12 3Z" />,
+  pause: (
+    <>
+      <rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor" stroke="none" />
+      <rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor" stroke="none" />
+    </>
+  ),
+  play: <path d="M7 4.5v15l13-7.5Z" fill="currentColor" stroke="none" />,
   arrowRight: <path d="M5 12h14M13 6l6 6-6 6" />,
   pencil: (
     <>
