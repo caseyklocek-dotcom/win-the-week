@@ -73,6 +73,8 @@ export interface Song {
   pdfPath?: string; // path in Supabase Storage (charts bucket) for an uploaded PDF
   multitracksUrl?: string;
   songSelectUrl?: string;
+  youtubeUrl?: string;
+  spotifyUrl?: string;
   ccli?: string;
   notes?: string;
   tempo?: number; // BPM, usually read off an imported chart
@@ -95,6 +97,8 @@ export interface LibrarySong {
   pdfPath?: string; // path in Supabase Storage (charts bucket) for an uploaded PDF
   multitracksUrl?: string;
   songSelectUrl?: string;
+  youtubeUrl?: string;
+  spotifyUrl?: string;
   ccli?: string;
   notes?: string;
   tags?: string[];

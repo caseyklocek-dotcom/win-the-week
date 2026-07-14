@@ -26,6 +26,8 @@ const CATALOG_KEYS = [
   "pdfName",
   "multitracksUrl",
   "songSelectUrl",
+  "youtubeUrl",
+  "spotifyUrl",
   "ccli",
   "notes",
   "tempo",
@@ -50,6 +52,8 @@ export function librarySongFromSong(song: Song): LibrarySong {
     pdfName: song.pdfName,
     multitracksUrl: song.multitracksUrl,
     songSelectUrl: song.songSelectUrl,
+    youtubeUrl: song.youtubeUrl,
+    spotifyUrl: song.spotifyUrl,
     ccli: song.ccli,
     notes: song.notes,
   };
@@ -74,6 +78,8 @@ export function songFromLibrary(lib: LibrarySong): Song {
     pdfPath: lib.pdfPath,
     multitracksUrl: lib.multitracksUrl,
     songSelectUrl: lib.songSelectUrl,
+    youtubeUrl: lib.youtubeUrl,
+    spotifyUrl: lib.spotifyUrl,
     ccli: lib.ccli,
     notes: lib.notes,
   };

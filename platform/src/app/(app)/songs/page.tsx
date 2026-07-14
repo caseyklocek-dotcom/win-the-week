@@ -10,6 +10,7 @@ import { Icon } from "@/components/Icon";
 import { PdfChartControl } from "@/components/PdfChartControl";
 import { LibraryImport } from "@/components/LibraryImport";
 import { songLinks } from "@/lib/links";
+import { BrandIcon } from "@/components/BrandIcon";
 import { ALL_KEYS, countLabel, fmtDuration } from "@/lib/music";
 import { blankLibrarySong, libraryPatchFromParsedMeta, songFromLibrary } from "@/lib/library";
 import { sectionSongIds } from "@/lib/set";
@@ -623,23 +624,45 @@ function LibraryRow({
                 placeholder="https://songselect.ccli.com/..."
               />
             </Field>
+            <Field label="YouTube link">
+              <EditableText
+                value={lib.youtubeUrl ?? ""}
+                onCommit={(v) => onUpdate({ youtubeUrl: v })}
+                placeholder="https://youtube.com/watch?v=..."
+              />
+            </Field>
+            <Field label="Spotify link">
+              <EditableText
+                value={lib.spotifyUrl ?? ""}
+                onCommit={(v) => onUpdate({ spotifyUrl: v })}
+                placeholder="https://open.spotify.com/track/..."
+              />
+            </Field>
           </div>
 
-          {/* One-tap jumps to where leaders already look songs up. Saved links
-              win; otherwise these are prefilled searches on title + artist. */}
-          <div className="flex flex-wrap items-center gap-2">
+          {/* One-tap jumps to where leaders already look songs up, with the
+              real logo for each — saved links win; otherwise these are
+              prefilled searches on title + artist. */}
+          <div>
             <span className="text-xs font-semibold text-charcoal-400">Find it on</span>
-            {songLinks(lib).map((l) => (
-              <a
-                key={l.label}
-                href={l.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 rounded-full border border-charcoal-100 px-3 py-1 text-xs font-semibold text-charcoal-600 transition hover:border-coral-300 hover:text-coral-600"
-              >
-                {l.label} <Icon name="link" size={11} />
-              </a>
-            ))}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {songLinks(lib).map((l) => (
+                <a
+                  key={l.brand}
+                  href={l.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={l.saved ? `Open your ${l.label} link` : `Search ${l.label} for this song`}
+                  className="group inline-flex items-center gap-1.5 rounded-full border border-charcoal-100 py-1 pl-1 pr-3 text-xs font-semibold text-charcoal-600 transition hover:border-coral-300 hover:text-coral-600"
+                >
+                  <BrandIcon brand={l.brand} size={20} className="shrink-0 rounded-full" />
+                  {l.label}
+                  {!l.saved && (
+                    <span className="text-charcoal-300 group-hover:text-coral-400">search</span>
+                  )}
+                </a>
+              ))}
+            </div>
           </div>
 
           <Field label="Notes">
