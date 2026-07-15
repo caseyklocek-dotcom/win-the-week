@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
-import { Card, Label, Pill, KeyBadge } from "@/components/ui";
+import { Card, Label, Pill } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { EditableText, Segmented } from "@/components/fields";
 import { PlanRail } from "@/components/PlanRail";
@@ -12,6 +12,8 @@ import { fmtDuration, weekdayName } from "@/lib/music";
 import { sectionSongIds, serviceSetDurationSec } from "@/lib/set";
 import type { CapacityLevel, PrepStatus, Service } from "@/lib/types";
 import { lastSundayNote } from "@/lib/reflect";
+import { nextServiceAction } from "@/lib/readiness";
+import { pcsMode } from "@/lib/mode";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -97,7 +99,7 @@ function PlanInner() {
 
       {tab === "overview" && (
         <WithRail>
-          <Overview svc={svc} patch={patch} setTab={setTab} services={state.services} />
+          <Overview svc={svc} patch={patch} services={state.services} pcs={pcsMode(state.profile)} />
         </WithRail>
       )}
       {tab === "pray" && <Pray svc={svc} patch={patch} services={state.services} />}
@@ -133,13 +135,13 @@ function WithRail({ children }: { children: React.ReactNode }) {
 function Overview({
   svc,
   patch,
-  setTab,
   services,
+  pcs,
 }: {
   svc: Service;
   patch: (fn: (s: Service) => Service) => void;
-  setTab: (id: TabId) => void;
   services: Service[];
+  pcs: boolean;
 }) {
   const cycle: Record<PrepStatus, PrepStatus> = { todo: "doing", doing: "done", done: "todo" };
   const stages = [
@@ -163,38 +165,20 @@ function Overview({
   const unsent = Math.max(0, assignedCount - sentCount);
   const lastNote = lastSundayNote(services, svc.date);
 
-  // The single most useful next move. First unmet thing wins.
-  const next: { text: string; cta: string; go: () => void } | null = openRoles
-    ? {
-        text: `${openRoles} ${openRoles === 1 ? "role" : "roles"} still need someone.`,
-        cta: "Assign the team",
-        go: () => (window.location.href = "/team"),
-      }
-    : songCount === 0
-      ? {
-          text: "No songs in the set yet.",
-          cta: "Build the set",
-          go: () => (window.location.href = "/set"),
-        }
-      : unsent > 0
-        ? {
-            text: `${unsent} ${unsent === 1 ? "person hasn't" : "people haven't"} gotten their link yet.`,
-            cta: "Send the week",
-            go: () => (window.location.href = "/send"),
-          }
-        : awaiting
-          ? {
-              text: `${awaiting} ${awaiting === 1 ? "person" : "people"} still to confirm.`,
-              cta: "Follow up with the team",
-              go: () => (window.location.href = "/team"),
-            }
-          : svc.status.prep !== "done"
-            ? {
-                text: "Set and team are ready. Lock in the details.",
-                cta: "Finish prep",
-                go: () => setTab("prep"),
-              }
-            : null;
+  // Shared with Home, Quick Mode, Send, and Packet so every surface names the
+  // same next move. Sending only enters the picture after the work is ready.
+  const sharedNext = nextServiceAction(svc, pcs);
+  const next =
+    sharedNext.id === "share" && unsent === 0
+      ? null
+      : {
+          text:
+            sharedNext.id === "share" && unsent > 0
+              ? `${unsent} ${unsent === 1 ? "person hasn't" : "people haven't"} gotten their link yet.`
+              : sharedNext.detail,
+          cta: sharedNext.id === "share" ? "Share the week" : sharedNext.label,
+          href: sharedNext.href,
+        };
 
   const stageDone = (["pray", "plan", "prep"] as const).filter(
     (k) => svc.status[k] === "done",
@@ -208,13 +192,13 @@ function Overview({
           <Label>Your next step</Label>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
             <p className="text-lg font-semibold text-charcoal-900">{next.text}</p>
-            <button
-              onClick={next.go}
+            <Link
+              href={next.href}
               className="inline-flex items-center gap-1.5 rounded-lg bg-coral-500 px-5 py-2.5 text-sm font-semibold text-white shadow-[var(--shadow-coral)] transition hover:bg-coral-600"
             >
               {next.cta}
               <Icon name="arrowRight" size={15} />
-            </button>
+            </Link>
           </div>
         </Card>
       ) : (
@@ -224,7 +208,7 @@ function Overview({
               <Icon name="check" size={18} />
             </span>
             <div>
-              <p className="text-lg font-semibold text-charcoal-900">You&rsquo;re ready for Sunday.</p>
+              <p className="text-lg font-semibold text-charcoal-900">You&rsquo;re ready for {weekdayName(svc.date)}.</p>
               <p className="text-sm text-charcoal-500">Set, team, and comms are all locked. Rest well.</p>
             </div>
           </div>
@@ -411,14 +395,25 @@ function Schedule({ svc, patch }: { svc: Service; patch: (fn: (s: Service) => Se
     });
 
   const toggle = (hour: number, taskId: string) =>
-    patch((p) => ({
+    {
+      const selected = svc.blocks.find((block) => block.hour === hour)?.tasks.find((task) => task.id === taskId);
+      if (
+        selected?.target?.startsWith("/calendar?review=week") &&
+        !selected.done &&
+        !svc.calendarPlan?.reviewedAt
+      ) {
+        window.location.href = selected.target;
+        return;
+      }
+      patch((p) => ({
       ...p,
       blocks: p.blocks.map((b) =>
         b.hour === hour
           ? { ...b, tasks: b.tasks.map((t) => (t.id === taskId ? { ...t, done: !t.done } : t)) }
           : b,
       ),
-    }));
+      }));
+    };
 
   const stateOf = (i: number): "done" | "active" | "todo" =>
     activeIdx === -1 || i < activeIdx ? "done" : i === activeIdx ? "active" : "todo";
@@ -436,7 +431,7 @@ function Schedule({ svc, patch }: { svc: Service; patch: (fn: (s: Service) => Se
             <Label>The loop</Label>
             <p className="mt-1 text-base font-semibold text-charcoal-900">
               {complete
-                ? "Every hour's in. Rest well. Hour 5 reopens the loop after Sunday."
+                ? `Every hour's in. Rest well. Hour 5 reopens the loop after ${weekdayName(svc.date)}.`
                 : `You're on Hour ${activeIdx + 1} · ${svc.blocks[activeIdx].focus}`}
             </p>
           </div>
@@ -606,15 +601,15 @@ function HourStep({
 
           {n === 1 && (
             <Link
-              href="/calendar"
+              href="/calendar?review=week"
               className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-coral-600 hover:underline"
             >
-              Open the runway and sweep 8 · 4 · 3 · 2 · 1 <Icon name="arrowRight" size={13} />
+              Review your week, then sweep 8 · 4 · 3 · 2 · 1 <Icon name="arrowRight" size={13} />
             </Link>
           )}
           {n === 5 && (
             <p className="mt-3 text-xs text-charcoal-400">
-              Happens <span className="font-semibold text-charcoal-600">after Sunday</span>. Its
+              Happens <span className="font-semibold text-charcoal-600">after the service</span>. Its
               Kingdom Win and one fix become next week&rsquo;s Hour 1.
             </p>
           )}

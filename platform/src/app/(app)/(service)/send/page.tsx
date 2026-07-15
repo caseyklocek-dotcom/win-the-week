@@ -30,6 +30,9 @@ import {
 import { fmtDuration, weekdayName } from "@/lib/music";
 import { serviceSetDurationSec } from "@/lib/set";
 import type { Person, Service } from "@/lib/types";
+import { ReadinessNotice } from "@/components/ReadinessNotice";
+import { pcsMode } from "@/lib/mode";
+import { serviceReadiness } from "@/lib/readiness";
 
 function fmtFullDate(iso: string) {
   return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
@@ -77,6 +80,9 @@ export default function SendPage() {
   const [publishing, setPublishing] = useState(false);
   const [responses, setResponses] = useState<Record<string, PacketResponse>>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [allowIncomplete, setAllowIncomplete] = useState(false);
+  const readiness = serviceReadiness(svc, pcsMode(state.profile));
+  const blocked = readiness.blockerCount > 0 && !allowIncomplete;
 
   // Pull the latest replies for every sent link.
   const refresh = useCallback(async () => {
@@ -91,6 +97,7 @@ export default function SendPage() {
 
   // Publish links — new packets for the unsent, same tokens for the sent.
   const publish = async (rebuildAll: boolean) => {
+    if (blocked) return;
     setPublishing(true);
     const next: NonNullable<Service["sentPackets"]> = { ...sent };
     for (const bp of roster) {
@@ -156,6 +163,14 @@ export default function SendPage() {
         </span>
       </div>
 
+      <div className="mt-5">
+        <ReadinessNotice
+          allowOverride
+          overridden={allowIncomplete}
+          onOverride={() => setAllowIncomplete((value) => !value)}
+        />
+      </div>
+
       {roster.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-dashed border-charcoal-200 px-6 py-10 text-center">
           <p className="text-sm text-charcoal-500">
@@ -186,8 +201,8 @@ export default function SendPage() {
               {(sentCount < roster.length || publishing) && (
                 <button
                   onClick={() => publish(false)}
-                  disabled={publishing}
-                  className="inline-flex items-center gap-2 rounded-full bg-coral-500 px-5 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition hover:bg-coral-600 disabled:opacity-60"
+                  disabled={publishing || blocked}
+                  className="inline-flex items-center gap-2 rounded-full bg-coral-500 px-5 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition hover:bg-coral-600 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   {publishing ? (
                     <>
@@ -209,7 +224,7 @@ export default function SendPage() {
                 <>
                   <button
                     onClick={() => publish(true)}
-                    disabled={publishing}
+                    disabled={publishing || blocked}
                     className="rounded-full border border-charcoal-100 px-4 py-2.5 text-sm font-semibold text-charcoal-600 transition hover:border-charcoal-200 disabled:opacity-60"
                   >
                     Refresh the set in their packets

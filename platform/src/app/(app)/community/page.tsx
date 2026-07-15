@@ -740,18 +740,21 @@ function PostCard({
           onClick={() => toggleLikePost(post.id)}
           icon="heart"
           label={post.likes}
+          name={post.likedByMe ? "Unlike post" : "Like post"}
         />
         <ActionButton
           active={showComments}
           onClick={() => setShowComments((s) => !s)}
           icon="message"
           label={post.comments.length}
+          name={showComments ? "Hide comments" : "Show comments"}
         />
         <ActionButton
           active={post.sharedByMe}
           onClick={() => toggleSharePost(post.id)}
           icon="share"
           label={post.shares}
+          name={post.sharedByMe ? "Unshare post" : "Share post"}
         />
         <div className="ml-auto">
           <ActionButton
@@ -759,6 +762,7 @@ function PostCard({
             onClick={() => toggleSavePost(post.id)}
             icon="bookmark"
             label={post.savedByMe ? "Saved" : "Save"}
+            name={post.savedByMe ? "Remove saved post" : "Save post"}
           />
         </div>
       </div>
@@ -782,6 +786,8 @@ function PostCard({
                   </div>
                   <button
                     onClick={() => toggleLikeComment(post.id, c.id)}
+                    aria-label={c.likedByMe ? "Unlike comment" : "Like comment"}
+                    aria-pressed={c.likedByMe}
                     className={`mt-1 flex items-center gap-1 pl-1 text-xs font-semibold transition ${
                       c.likedByMe ? "text-coral-600" : "text-charcoal-400 hover:text-charcoal-700"
                     }`}
@@ -824,15 +830,19 @@ function ActionButton({
   onClick,
   icon,
   label,
+  name,
 }: {
   active: boolean;
   onClick: () => void;
   icon: string;
   label: React.ReactNode;
+  name: string;
 }) {
   return (
     <button
       onClick={onClick}
+      aria-label={name}
+      aria-pressed={active}
       className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold transition ${
         active
           ? "bg-coral-100 text-coral-600"

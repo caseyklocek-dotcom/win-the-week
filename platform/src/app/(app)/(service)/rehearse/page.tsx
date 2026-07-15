@@ -196,7 +196,7 @@ export default function RehearsalPage() {
         ? "Add, rename, or remove the items you'll tick before walking in."
         : editing === "flow"
           ? "Your run of the night. Edit times and steps to fit."
-          : "Capture the cues you'll forget by Sunday morning.";
+          : `Capture the cues you'll forget by ${weekdayName(svc.date)}.`;
 
     return (
       <div className="mx-auto max-w-4xl space-y-8">
@@ -319,7 +319,7 @@ export default function RehearsalPage() {
           <SectionHead
             n={all ? 3 : undefined}
             title="Song-by-song notes"
-            sub="One card per song in this Sunday's set. Capture the cues you'll forget by Sunday morning."
+            sub={`One card per song in this ${weekdayName(svc.date)} set. Capture the cues you'll forget by ${weekdayName(svc.date)}.`}
           />
           {songs.length === 0 ? (
             <Card>

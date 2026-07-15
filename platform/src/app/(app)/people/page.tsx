@@ -132,7 +132,7 @@ function NewPersonModal({
 }
 
 export default function PeoplePage() {
-  const { state, people, addPerson, updatePerson, removePerson } = useStore();
+  const { state, people, addPerson, updatePerson, removePerson, checkpoint } = useStore();
   const [q, setQ] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -243,6 +243,7 @@ export default function PeoplePage() {
               }
               onUpdate={(fields) => updatePerson(person.id, fields)}
               onRemove={() => {
+                checkpoint(`${person.name} removed from the roster`);
                 removePerson(person.id);
                 setOpenId(null);
               }}

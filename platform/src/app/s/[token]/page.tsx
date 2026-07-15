@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { BrandIcon } from "@/components/BrandIcon";
 import { ChartSheet } from "@/components/ChartSheet";
-import { ALL_KEYS, fmtDuration } from "@/lib/music";
+import { ALL_KEYS } from "@/lib/music";
 import {
   PRACTICE_STEPS,
   markPacketOpened,
@@ -182,6 +182,8 @@ function PacketView({
   }, [printing]);
 
   const status = response?.status ?? "pending";
+  const practiceRemaining = PRACTICE_STEPS.length - practice.length;
+  const firstName = packet.person.name.split(" ")[0];
 
   return (
     <div className={`min-h-screen bg-cream-100 ${printing ? "print-single" : ""}`}>
@@ -196,6 +198,9 @@ function PacketView({
             {packet.service.serviceTime}
             {packet.service.title ? ` · ${packet.service.title}` : ""}
           </p>
+          <p className="editorial mt-3 text-base text-charcoal-500">
+            Hey {firstName} &mdash; thanks for helping make Sunday happen.
+          </p>
         </div>
 
         {/* Assignment + confirm/decline */}
@@ -204,6 +209,9 @@ function PacketView({
           <div className="mt-1 text-xl font-bold text-charcoal-900">
             {packet.person.assignment}
           </div>
+          <p className="mt-1 text-sm text-charcoal-500">
+            Everything you need for your part is right here. No login, no hunting around.
+          </p>
 
           {status === "pending" && !declineOpen && (
             <div className="mt-4 flex gap-2.5">
@@ -345,7 +353,13 @@ function PacketView({
 
         {/* Get Sunday-ready — light practice loop that reports back */}
         <div className="mt-6 rounded-2xl bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-          <div className="label text-teal-600">Get Sunday-ready</div>
+          <div className="flex items-baseline justify-between gap-3">
+            <div className="label text-teal-600">Get Sunday-ready</div>
+            <span className="text-xs font-semibold text-charcoal-400">
+              {practiceRemaining === 0 ? "You're ready" : `${practiceRemaining} small ${practiceRemaining === 1 ? "step" : "steps"} left`}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-charcoal-500">A little preparation now makes room to lead with confidence later.</p>
           <div className="mt-2 space-y-1">
             {PRACTICE_STEPS.map((step) => {
               const checked = practice.includes(step.id);

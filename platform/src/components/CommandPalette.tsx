@@ -48,13 +48,13 @@ function fmtServiceDate(iso: string) {
 
 // Every-page routes. `keywords` catch the words a leader would actually type.
 const ROUTES: { href: string; label: string; icon: string; keywords: string; hint?: string; scheduling?: boolean; invest?: boolean }[] = [
-  { href: "/", label: "This Sunday", icon: "home", keywords: "home dashboard today overview" },
+  { href: "/", label: "Current Service", icon: "home", keywords: "home dashboard today overview" },
   { href: "/quick", label: "The 15-minute plan", icon: "sparkle", keywords: "quick plan fast fifteen 15 minute wizard flow" },
   { href: "/live", label: "Sunday Live", icon: "music", keywords: "live sunday morning running order stage stand go" },
   { href: "/live/debrief", label: "Sunday debrief", icon: "check", keywords: "debrief review how did it go actual planned staff evaluate" },
   { href: "/plan", label: "The guided loop (Pray · Plan · Prep)", icon: "check", keywords: "plan pray prep loop service guided" },
   { href: "/set", label: "Worship set", icon: "music", keywords: "set songs order setlist build" },
-  { href: "/team", label: "Team for this Sunday", icon: "users", keywords: "team roster assign roles fill", scheduling: true },
+  { href: "/team", label: "Team for this service", icon: "users", keywords: "team roster assign roles fill", scheduling: true },
   { href: "/rehearse", label: "Rehearsal", icon: "check", keywords: "rehearse rehearsal practice run" },
   { href: "/send", label: "Send the week", icon: "users", keywords: "send comms links packets team text nudge confirm", scheduling: true },
   { href: "/packet", label: "Service packet", icon: "printer", keywords: "packet print pdf charts export send", scheduling: true },

@@ -43,7 +43,7 @@ function AwaitingModal({
             Awaiting confirmation
           </h2>
           <p className="mt-0.5 text-xs text-charcoal-400">
-            Reach out to anyone who hasn't confirmed yet.
+            Reach out to anyone who hasn&apos;t confirmed yet.
           </p>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4 space-y-3">
@@ -236,7 +236,7 @@ const STATUS_CYCLE: RoleStatus[] = ["ok", "wait", "no"];
 const TEAM_COLORS = ["#ff6b5e", "#3d9970", "#2e2e2e", "#b9711d", "#5b7fb9"];
 
 export default function TeamPage() {
-  const { state, people, positionLibrary, activeService: svc, updateService, setState, addPerson,
+  const { state, people, positionLibrary, activeService: svc, updateService, setState, addPerson, checkpoint,
     teamTemplates, applyTeamTemplate } =
     useStore();
 
@@ -385,7 +385,8 @@ export default function TeamPage() {
   // losing BGV2 becomes BGV1/BGV2; dropping to one loses the number). Only
   // genuine stacking positions renumber, so custom labels like "Vocals 1" are
   // left exactly as typed.
-  const removeRole = (tid: string, rid: string) =>
+  const removeRole = (tid: string, rid: string) => {
+    checkpoint("Team role removed");
     setTeamsStructural(
       svc.teams.map((t) => {
         if (t.id !== tid) return t;
@@ -401,6 +402,7 @@ export default function TeamPage() {
         };
       }),
     );
+  };
 
   const handleRemoveSlot = () => {
     if (!picker) return;

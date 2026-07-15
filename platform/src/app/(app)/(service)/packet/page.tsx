@@ -9,6 +9,9 @@ import { countLabel, fmtDuration, ALL_KEYS } from "@/lib/music";
 import { serviceDisplayTitle, serviceSetDurationSec } from "@/lib/set";
 import { chartPdfUrl, downloadMergedChartPdfs } from "@/lib/storage";
 import type { Song, ChartDisplay } from "@/lib/types";
+import { ReadinessNotice } from "@/components/ReadinessNotice";
+import { pcsMode } from "@/lib/mode";
+import { serviceReadiness } from "@/lib/readiness";
 
 const NOTATIONS: { value: ChartDisplay; label: string }[] = [
   { value: "chords", label: "Chords" },
@@ -29,6 +32,9 @@ function fmtDate(iso: string) {
 export default function PacketPage() {
   const { activeService, state } = useStore();
   const svc = activeService;
+  const [allowIncomplete, setAllowIncomplete] = useState(false);
+  const readiness = serviceReadiness(svc, pcsMode(state.profile));
+  const blocked = readiness.blockerCount > 0 && !allowIncomplete;
 
   const chartSongs = svc.songs.filter((s) => s.chartSource === "builtin" && s.chart);
   const pdfChartSongs = svc.songs.filter((s) => s.chartSource === "pdf" && s.pdfPath);
@@ -92,7 +98,9 @@ export default function PacketPage() {
   const [printMode, setPrintMode] = useState<"none" | "service" | "single">("none");
   const [printChart, setPrintChart] = useState<Song | null>(null);
 
-  const printService = () => setPrintMode("service");
+  const printService = () => {
+    if (!blocked) setPrintMode("service");
+  };
   const printOneChart = (s: Song) => {
     setPrintChart(withChartSettings(s));
     setPrintMode("single");
@@ -155,10 +163,19 @@ export default function PacketPage() {
         </div>
         <button
           onClick={printService}
-          className="flex items-center gap-1.5 rounded-lg bg-coral-500 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_4px_20px_rgba(255,107,94,0.35)] transition hover:bg-coral-600"
+          disabled={blocked}
+          className="flex items-center gap-1.5 rounded-lg bg-coral-500 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_4px_20px_rgba(255,107,94,0.35)] transition hover:bg-coral-600 disabled:cursor-not-allowed disabled:opacity-45"
         >
           <Icon name="printer" size={16} /> Print order of service
         </button>
+      </div>
+
+      <div className="no-print">
+        <ReadinessNotice
+          allowOverride
+          overridden={allowIncomplete}
+          onOverride={() => setAllowIncomplete((value) => !value)}
+        />
       </div>
 
       {/* Order-of-service options */}
@@ -301,7 +318,7 @@ export default function PacketPage() {
                     <div className="text-xs font-bold uppercase tracking-wide text-coral-600">
                       {sec.label}
                     </div>
-                    {sec.rows.map((row, i) => {
+                    {sec.rows.map((row) => {
                       if (row.kind === "song") {
                         const song = svc.songs.find((s) => s.id === row.refId);
                         if (!song) return null;
@@ -414,6 +431,7 @@ function CheckRow({
   return (
     <button
       onClick={onClick}
+      aria-pressed={on}
       className="flex items-center gap-2.5 rounded-lg border border-charcoal-100 px-3 py-2.5 text-left text-sm transition hover:border-charcoal-200"
     >
       <span

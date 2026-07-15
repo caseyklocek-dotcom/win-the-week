@@ -23,6 +23,7 @@ import { Coach } from "./Coach";
 import { Tour } from "./Tour";
 import { CommandPalette, openPalette } from "./CommandPalette";
 import { QuickResumePill } from "./QuickResumePill";
+import { UndoToast } from "./UndoToast";
 
 type NavItem = {
   href: string;
@@ -33,10 +34,10 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { href: "/", label: "This Sunday" },
+  { href: "/", label: "Current Service" },
   {
     href: "/plan",
-    label: "Plan",
+    label: "Services",
     match: ["/plan", "/set", "/team", "/rehearse", "/send", "/packet", "/quick"],
   },
   { href: "/calendar", label: "Calendar" },
@@ -85,7 +86,7 @@ function useCmdLabel() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { state, setState } = useStore();
+  const { state } = useStore();
   const cmdLabel = useCmdLabel();
 
   // Guided vs Fast still drives routing + coaching; the CHOICE now lives on
@@ -111,7 +112,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* ---- Top nav ---- */}
       <header className="no-print sticky top-0 z-30 border-b border-charcoal-100 bg-white/90 backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-[1200px] items-center gap-5 px-4 lg:gap-7 lg:px-8">
-          <Link href="/" className="flex shrink-0 items-center gap-2.5">
+          <Link href="/" aria-label="Win the Week home" className="flex shrink-0 items-center gap-2.5">
             <LogoMark className="h-6 w-6 text-coral-500" />
             <span className="headline hidden text-[13px] tracking-[0.05em] sm:block">
               Win the Week
@@ -215,6 +216,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* First-run product tour — keyed so replay remounts it fresh */}
       <Tour key={state.onboarded ? "done" : "run"} />
+
+      {/* Quiet autosave confirmation plus an eight-second recovery window. */}
+      <UndoToast />
     </div>
   );
 }

@@ -1,12 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { Icon } from "@/components/Icon";
 import { makeServiceFromTemplate, nextSunday } from "@/lib/seed";
 import { serviceDisplayTitle } from "@/lib/set";
-import type { PrepStatus, Service } from "@/lib/types";
+import type { CalendarProvider, PrepStatus, PreparationBlock, Service } from "@/lib/types";
+import {
+  eventsForServiceWeek,
+  parseIcs,
+  preparationBlocksToIcs,
+  previewCalendar,
+  serviceWeekDays,
+  suggestPreparationBlocks,
+  weeksUntilService,
+} from "@/lib/calendar";
+import { weekdayName } from "@/lib/music";
+import { CalendarSetupWizard } from "@/components/CalendarSetupWizard";
+import { UnifiedWeekCalendar } from "@/components/UnifiedWeekCalendar";
 
 const STAGE_CYCLE: Record<PrepStatus, PrepStatus> = {
   todo: "doing",
@@ -22,7 +34,7 @@ const STAGES = [
 
 const RUNWAY = [
   {
-    weeksOut: 7,
+    weeksOut: 8,
     kicker: "Set the theme",
     items: [
       ["themeSet", "Theme set"],
@@ -78,7 +90,10 @@ function monthDay(iso: string) {
 
 export default function CalendarPage() {
   const router = useRouter();
-  const { state, activeService, updateService, addService, setActiveService } = useStore();
+  const { state, activeService, updateService, addService, setActiveService, setState, checkpoint } = useStore();
+  const [importMessage, setImportMessage] = useState("");
+  const [syncMessage, setSyncMessage] = useState("");
+  const [syncing, setSyncing] = useState(false);
 
   // services sorted by date (soonest first)
   const services = [...state.services].sort((a, b) => a.date.localeCompare(b.date));
@@ -89,6 +104,197 @@ export default function CalendarPage() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [newDate, setNewDate] = useState(defaultNew);
   const [newSeason, setNewSeason] = useState("Ordinary Time");
+
+  const weekEvents = useMemo(
+    () => eventsForServiceWeek(state.calendar?.events ?? [], activeService.date),
+    [state.calendar?.events, activeService.date],
+  );
+  const proposedBlocks = useMemo(
+    () => suggestPreparationBlocks(activeService, weekEvents),
+    [activeService, weekEvents],
+  );
+  const protectedBlocks = activeService.calendarPlan?.protectedBlocks ?? [];
+
+  const refreshLiveCalendar = useCallback(async (provider: "google" | "microsoft") => {
+    const days = serviceWeekDays(activeService.date);
+    const end = new Date(days[6]);
+    end.setDate(end.getDate() + 1);
+    setSyncing(true);
+    try {
+      const response = await fetch(`/api/calendar/${provider}/events?start=${encodeURIComponent(days[0].toISOString())}&end=${encodeURIComponent(end.toISOString())}`);
+      if (!response.ok) throw new Error();
+      const data = await response.json();
+      setState((current) => ({ ...current, calendar: { provider, connected: true, setupComplete: true, previewMode: false, calendarName: provider === "google" ? "Google Calendar" : "Microsoft Outlook", lastSyncedAt: new Date().toISOString(), detailMode: current.calendar?.detailMode ?? "titles", calendars: data.calendars, selectedCalendarIds: data.calendars.map((calendar: { id: string }) => calendar.id), events: data.events.map((event: { title: string }) => ({ ...event, title: current.calendar?.detailMode === "busy" ? "Busy" : event.title })) } }));
+      setSyncMessage("Calendar refreshed");
+    } catch {
+      setSyncMessage("Calendar refresh needs attention. Reconnect from Calendar Setup.");
+    } finally {
+      setSyncing(false);
+    }
+  }, [activeService.date, setState]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get("calendar_connected");
+    const notice = params.get("calendar_notice");
+    const message = notice === "not-configured"
+      ? "Live sign-in is ready for deployment credentials. Use preview or import for now."
+      : notice === "apple-import"
+        ? "Apple Calendar currently connects through a calendar file. Direct access is being prepared."
+        : notice === "authorization-failed"
+          ? "Calendar sign-in was not completed. Nothing changed."
+          : "";
+    const timer = window.setTimeout(() => {
+      if (connected === "google" || connected === "microsoft") void refreshLiveCalendar(connected);
+      if (message) setImportMessage(message);
+    }, 0);
+    if (connected || notice) window.history.replaceState({}, "", "/calendar");
+    return () => window.clearTimeout(timer);
+  }, [refreshLiveCalendar]);
+
+  useEffect(() => {
+    const onFocus = () => {
+      const provider = state.calendar?.connected ? state.calendar.provider : undefined;
+      if (provider === "google" || provider === "microsoft") void refreshLiveCalendar(provider);
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [refreshLiveCalendar, state.calendar?.connected, state.calendar?.provider]);
+
+  const importCalendar = async (file: File, provider: CalendarProvider, detailMode: "titles" | "busy") => {
+    const parsed = parseIcs(await file.text(), provider);
+    const source = { id: `imported-${provider}`, name: file.name.replace(/\.ics$/i, ""), provider, color: "#8b7bb7", writable: false };
+    const events = parsed.map((event) => ({ ...event, calendarId: source.id, color: source.color, title: detailMode === "busy" ? "Busy" : event.title }));
+    setImportMessage(
+      events.length
+        ? `${events.length} calendar ${events.length === 1 ? "event" : "events"} imported.`
+        : "No calendar events were found in that file.",
+    );
+    if (!events.length) return;
+    setState((current) => ({
+      ...current,
+      calendar: {
+        provider,
+        connected: false,
+        setupComplete: true,
+        previewMode: false,
+        calendarName: file.name,
+        lastImportedAt: new Date().toISOString(),
+        calendars: [source],
+        selectedCalendarIds: [source.id],
+        detailMode,
+        events,
+      },
+    }));
+  };
+
+  const openPreview = (detailMode: "titles" | "busy") => {
+    const preview = previewCalendar(activeService.date);
+    setState((current) => ({
+      ...current,
+      calendar: {
+        provider: "manual",
+        connected: false,
+        setupComplete: true,
+        previewMode: true,
+        calendarName: "Unified calendar preview",
+        detailMode,
+        calendars: preview.calendars,
+        selectedCalendarIds: preview.calendars.map((calendar) => calendar.id),
+        events: preview.events.map((event) => ({ ...event, title: detailMode === "busy" ? "Busy" : event.title })),
+      },
+    }));
+  };
+
+  const protectBlock = (block: PreparationBlock) =>
+    updateService(activeService.id, (service) => ({
+      ...service,
+      calendarPlan: {
+        ...service.calendarPlan,
+        protectedBlocks: [
+          ...(service.calendarPlan?.protectedBlocks ?? []).filter((item) => item.id !== block.id),
+          block,
+        ],
+      },
+    }));
+
+  const removeBlock = (id: string) => {
+    checkpoint("Protected time removed");
+    updateService(activeService.id, (service) => ({
+      ...service,
+      calendarPlan: {
+        ...service.calendarPlan,
+        protectedBlocks: (service.calendarPlan?.protectedBlocks ?? []).filter((item) => item.id !== id),
+      },
+    }));
+  };
+
+  const changeCalendar = () => {
+    checkpoint("Calendar setup changed");
+    setState((current) => ({ ...current, calendar: undefined }));
+  };
+
+  const autoPlace = () => {
+    checkpoint("Preparation times auto-placed");
+    updateService(activeService.id, (service) => ({
+      ...service,
+      calendarPlan: { ...service.calendarPlan, protectedBlocks: proposedBlocks },
+    }));
+  };
+
+  const toggleCalendar = (id: string) => setState((current) => {
+    if (!current.calendar) return current;
+    const selected = current.calendar.selectedCalendarIds ?? current.calendar.calendars?.map((calendar) => calendar.id) ?? [];
+    return { ...current, calendar: { ...current.calendar, selectedCalendarIds: selected.includes(id) ? selected.filter((item) => item !== id) : [...selected, id] } };
+  });
+
+  const markReviewed = () =>
+    updateService(activeService.id, (service) => ({
+      ...service,
+      calendarPlan: {
+        ...service.calendarPlan,
+        reviewedAt: new Date().toISOString(),
+        protectedBlocks: service.calendarPlan?.protectedBlocks ?? [],
+      },
+      blocks: service.blocks.map((block) => ({
+        ...block,
+        tasks: block.tasks.map((task) =>
+          /review your week|scan the week|check your calendar/i.test(task.label)
+            ? { ...task, done: true }
+            : task,
+        ),
+      })),
+    }));
+
+  const addProtectedTimesToCalendar = async () => {
+    if (!protectedBlocks.length) return;
+    if (state.calendar?.connected && (state.calendar.provider === "google" || state.calendar.provider === "microsoft")) {
+      const writable = state.calendar.calendars?.find((calendar) => calendar.writable && (calendar.primary || state.calendar?.selectedCalendarIds?.includes(calendar.id)));
+      if (!writable) { setSyncMessage("Choose a writable calendar before syncing protected times."); return; }
+      setSyncing(true);
+      try {
+        const response = await fetch(`/api/calendar/${state.calendar.provider}/events`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ calendarId: writable.id, blocks: protectedBlocks }) });
+        if (!response.ok) throw new Error();
+        const data = await response.json();
+        const ids = new Map<string, string>(data.created.map((item: { blockId: string; externalEventId: string }) => [item.blockId, item.externalEventId]));
+        updateService(activeService.id, (service) => ({ ...service, calendarPlan: { ...service.calendarPlan, protectedBlocks: (service.calendarPlan?.protectedBlocks ?? []).map((block) => ids.has(block.id) ? { ...block, externalEventId: ids.get(block.id), syncedProvider: state.calendar!.provider } : block) } }));
+        setSyncMessage(data.created.length ? `${data.created.length} protected times added to ${writable.name}.` : data.updated ? `Protected times updated in ${writable.name}.` : "Protected times are already synced.");
+        void refreshLiveCalendar(state.calendar.provider);
+      } catch { setSyncMessage("Protected times were not added. Your Win the Week plan is still safe here."); }
+      finally { setSyncing(false); }
+      return;
+    }
+    const blob = new Blob([preparationBlocksToIcs(protectedBlocks, activeService)], {
+      type: "text/calendar;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `win-the-week-${activeService.date}.ics`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setSyncMessage("Calendar file downloaded");
+  };
 
   const openService = (id: string) => {
     setActiveService(id);
@@ -126,6 +332,71 @@ export default function CalendarPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-10">
+      {/* ---------- Review the real week ---------- */}
+      <section data-coach="week-review" className="rounded-2xl border border-charcoal-100 bg-white p-5 shadow-[var(--shadow-sm)] sm:p-7">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="label text-coral-600">Review your week</div>
+            <h1 className="mt-1 headline text-3xl text-charcoal-900">
+              Protect the time this {weekdayName(activeService.date)} needs
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm text-charcoal-500">
+              Bring your real commitments into view, then keep the preparation windows that work.
+              Event details stay in this local beta unless you later connect an account.
+            </p>
+          </div>
+          {activeService.calendarPlan?.reviewedAt && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-ok-tint px-3 py-1.5 text-xs font-bold text-ok-ink">
+              <Icon name="check" size={13} /> Week reviewed
+            </span>
+          )}
+        </div>
+
+        {!state.calendar?.setupComplete ? (
+          <CalendarSetupWizard onImport={importCalendar} onPreview={openPreview} />
+        ) : (
+          <>
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-cream-100 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <span className={`flex h-9 w-9 items-center justify-center rounded-full ${state.calendar.connected ? "bg-ok-tint text-ok-ink" : "bg-coral-100 text-coral-600"}`}><Icon name={state.calendar.connected ? "check" : "calendar"} size={17} /></span>
+                <div>
+                  <div className="text-sm font-bold text-charcoal-800">{state.calendar.calendarName || "Unified calendar"}</div>
+                  <div className="text-xs text-charcoal-500">{state.calendar.connected ? `Live sync · ${weekEvents.length} commitments this week` : state.calendar.previewMode ? "Previewing the complete workflow with sample commitments" : `Imported snapshot · ${weekEvents.length} commitments this week`}</div>
+                </div>
+              </div>
+              <button onClick={changeCalendar} className="text-xs font-bold text-coral-600">Calendar Setup</button>
+            </div>
+
+            <UnifiedWeekCalendar
+              serviceDate={activeService.date}
+              calendars={state.calendar.calendars ?? []}
+              events={weekEvents}
+              blocks={protectedBlocks}
+              previewMode={state.calendar.previewMode}
+              selectedCalendarIds={state.calendar.selectedCalendarIds ?? state.calendar.calendars?.map((calendar) => calendar.id) ?? []}
+              onToggleCalendar={toggleCalendar}
+              onAutoPlace={autoPlace}
+              onChangeBlock={protectBlock}
+              onRemoveBlock={removeBlock}
+            />
+
+            <div className="mt-5 flex flex-wrap items-center gap-2.5 border-t border-charcoal-100 pt-5">
+              <button onClick={markReviewed} className="inline-flex items-center gap-1.5 rounded-full bg-coral-500 px-5 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-coral)]"><Icon name="check" size={14} /> Finish Week Review</button>
+              {protectedBlocks.length > 0 && (
+                <button disabled={syncing} onClick={() => void addProtectedTimesToCalendar()} className="inline-flex items-center gap-1.5 rounded-full border border-coral-300 px-4 py-2.5 text-sm font-bold text-coral-600 disabled:opacity-50"><Icon name={syncing ? "rotate" : "calendar"} size={14} /> {syncing ? "Syncing…" : state.calendar.connected ? "Sync Protected Times" : "Export Protected Times"}</button>
+              )}
+              {importMessage && <span className="text-xs font-semibold text-charcoal-500">{importMessage}</span>}
+              {syncMessage && <span role="status" className="text-xs font-semibold text-charcoal-500">{syncMessage}</span>}
+            </div>
+          </>
+        )}
+        {!state.calendar?.setupComplete && importMessage && (
+          <div role="status" className="mt-3 rounded-lg border border-coral-200 bg-coral-50 px-4 py-3 text-sm font-semibold text-charcoal-600">
+            {importMessage}
+          </div>
+        )}
+      </section>
+
       {/* ---------- The runway (lead) ---------- */}
       <section>
         <div className="label text-coral-600">The runway</div>
@@ -137,7 +408,7 @@ export default function CalendarPage() {
         </p>
 
         <div data-coach="runway" data-tour="runway" className="mt-6 border-t border-charcoal-100">
-          {!RUNWAY.some((stage) => services[stage.weeksOut]) && (
+          {!RUNWAY.some((stage) => services.some((service) => weeksUntilService(service.date) === stage.weeksOut)) && (
             <div className="px-5 py-8 text-center">
               <p className="text-sm font-semibold text-charcoal-700">
                 Your runway fills in as you plan ahead.
@@ -157,7 +428,9 @@ export default function CalendarPage() {
             </div>
           )}
           {RUNWAY.map((stage) => {
-            const svc = services[stage.weeksOut];
+            const svc = services.find(
+              (service) => service.date >= new Date().toISOString().slice(0, 10) && weeksUntilService(service.date) === stage.weeksOut,
+            );
             if (!svc) return null;
             return (
               <div

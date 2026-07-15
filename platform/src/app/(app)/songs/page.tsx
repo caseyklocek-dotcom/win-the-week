@@ -288,7 +288,7 @@ export default function SongsPage() {
 }
 
 function SongsPageInner() {
-  const { state, songLibrary, addLibrarySong, updateLibrarySong, removeLibrarySong } =
+  const { state, songLibrary, addLibrarySong, updateLibrarySong, removeLibrarySong, checkpoint } =
     useStore();
   const [q, setQ] = useState("");
   // ?q= lets the command palette (and any link) land here pre-filtered.
@@ -413,6 +413,7 @@ function SongsPageInner() {
               onToggle={() => setOpenId((id) => (id === lib.id ? null : lib.id))}
               onUpdate={(fields) => updateLibrarySong(lib.id, fields)}
               onRemove={() => {
+                checkpoint(`${lib.title} removed from the song library`);
                 removeLibrarySong(lib.id);
                 setOpenId(null);
               }}

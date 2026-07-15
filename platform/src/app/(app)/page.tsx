@@ -12,13 +12,14 @@
 
 import Link from "next/link";
 import { useStore } from "@/lib/store";
-import { pcsMode, profileMode } from "@/lib/mode";
+import { pcsMode } from "@/lib/mode";
 import { KeyBadge, ProgressBar } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { ServiceSwitcher } from "@/components/ServiceSwitcher";
 import { fmtDuration, weekdayName } from "@/lib/music";
 import { sectionSongIds, serviceDisplayTitle, serviceSetDurationSec } from "@/lib/set";
 import type { Service, Song } from "@/lib/types";
+import { nextServiceAction } from "@/lib/readiness";
 
 function fullDate(iso: string) {
   return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
@@ -52,18 +53,19 @@ function getGreeting(
   const hour = now.getHours();
   const name = firstName ? ", " + firstName : "";
   const d = daysUntil(svcDate);
+  const day = weekdayName(svcDate);
 
-  if (d === 0) return { headline: `It's ${weekdayName(svcDate)}${name}`, nudge: "Go lead well." };
+  if (d === 0) return { headline: `It's ${day}${name}`, nudge: "Go lead well." };
   if (doneCount === 3) {
     const opts = [
-      "Sunday's covered. Rest well.",
+      `${day}'s covered. Rest well.`,
       "Everything's locked. Nice work.",
       "All set. Enjoy the week.",
     ];
     return { headline: `You're ready${name}`, nudge: opts[now.getDate() % opts.length] };
   }
   if (d <= 2 && doneCount === 0)
-    return { headline: `Sunday's close${name}`, nudge: "Start anywhere. Just start." };
+    return { headline: `${day}'s close${name}`, nudge: "Start anywhere. Just start." };
   if (d <= 2) return { headline: `Almost there${name}`, nudge: "Finish strong." };
   if (doneCount === 1) return { headline: `Prayed up${name}`, nudge: "Time to build the plan." };
   if (doneCount === 2) return { headline: `Plan's locked${name}`, nudge: "Prep is all that's left." };
@@ -72,31 +74,8 @@ function getGreeting(
   if (hour < 9) return { headline: `Early start${name}`, nudge: "What do you want to tackle first?" };
   if (hour < 12) return { headline: `Good morning${name}`, nudge: "Where do you want to begin?" };
   if (hour < 17) return { headline: `Good week${name}`, nudge: "Start wherever feels right." };
-  if (hour < 21) return { headline: `Good evening${name}`, nudge: "Ready to plan for Sunday?" };
+  if (hour < 21) return { headline: `Good evening${name}`, nudge: `Ready to plan for ${day}?` };
   return { headline: `Still at it${name}`, nudge: "Burning the midnight oil." };
-}
-
-// The single most useful thing to do next, by looking at the actual state of
-// the week — this is what the loop thread points at.
-function nextStep(
-  svc: Service,
-  songs: Song[],
-  pcs: boolean,
-): { label: string; href: string } {
-  const roles = svc.teams.flatMap((t) => t.roles);
-  const open = roles.find((r) => r.status === "no");
-  const awaiting = roles.find((r) => r.status === "wait");
-
-  if (svc.status.pray !== "done") return { label: "start with prayer", href: "/plan?tab=pray" };
-  if (songs.length === 0) return { label: "build the set", href: "/set" };
-  if (!pcs && open) return { label: `fill the ${open.position} slot`, href: "/team" };
-  if (!pcs && awaiting)
-    return { label: `nudge ${awaiting.person.split(" ")[0] || "the team"}`, href: "/team" };
-  if (svc.status.plan !== "done") return { label: "finish the plan", href: "/plan" };
-  if (svc.status.prep !== "done") return { label: "run your prep", href: "/plan?tab=prep" };
-  return pcs
-    ? { label: "review the week", href: "/plan" }
-    : { label: "send the packet", href: "/packet" };
 }
 
 // ---- Saturday confidence — how ready the week already is, 0–100 ----
@@ -155,7 +134,7 @@ function initialsOf(name: string) {
 // Sunrise arc gauge — the one bold visual on the page.
 function SunriseGauge({ pct }: { pct: number }) {
   return (
-    <svg width="168" height="98" viewBox="0 0 168 98" aria-label={`Saturday confidence ${pct}%`}>
+    <svg width="168" height="98" viewBox="0 0 168 98" aria-label={`Service confidence ${pct}%`}>
       <defs>
         <linearGradient id="sunrise" x1="0" y1="1" x2="1" y2="0">
           <stop offset="0" stopColor="#ffb3ac" />
@@ -245,7 +224,7 @@ export default function Dashboard() {
   ).length;
   const pcs = pcsMode(state.profile);
   const { headline, nudge } = getGreeting(firstName, doneCount, svc.date);
-  const next = nextStep(svc, allSongs, pcs);
+  const next = nextServiceAction(svc, pcs);
   const conf = confidence(svc, allSongs, pcs);
   const streak = prepStreak(state.services);
 
@@ -259,21 +238,40 @@ export default function Dashboard() {
   if (!planStarted) {
     return (
       <div className="mx-auto max-w-3xl py-10" data-tour="dash-hero">
-        <p className="label text-coral-600">Start here</p>
+        <p className="label text-coral-600">Your first Sunday starts here</p>
         <h1 className="headline mt-2 text-4xl text-charcoal-900 lg:text-5xl">
-          Plan your first service
+          Let&apos;s give Sunday a little more room to breathe
         </h1>
         <p className="editorial mt-4 max-w-xl text-xl text-charcoal-600">
-          Nothing&rsquo;s on the calendar yet. Start with {fullDate(svc.date)} &mdash; the heart of
-          the service first, then the set, the team, and the prep follow.
+          Start with {fullDate(svc.date)}. We&apos;ll get the heart of the service down first;
+          the set, team, and prep can follow one calm step at a time.
         </p>
+        <div className="mt-7 grid max-w-2xl gap-px overflow-hidden rounded-2xl border border-charcoal-100 bg-charcoal-100 sm:grid-cols-3">
+          {[
+            { title: "Start with the heart", body: "Name what Sunday is carrying." },
+            { title: "Build the set", body: "Add songs when you're ready." },
+            { title: "Bring in the team", body: "Give everyone one clear plan." },
+          ].map((item, index) => (
+            <div key={item.title} className="bg-white px-5 py-5">
+              <div className="flex items-center gap-3">
+                <span className="label text-[10px] text-coral-600">Step {String(index + 1).padStart(2, "0")}</span>
+                <span className="h-px flex-1 bg-charcoal-100" />
+              </div>
+              <p className="mt-4 text-sm font-bold text-charcoal-900">
+                {item.title}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-charcoal-500">{item.body}</p>
+            </div>
+          ))}
+        </div>
         <Link
           href="/plan?setup=new"
           className="mt-8 inline-flex items-center gap-2 rounded-full bg-coral-500 px-6 py-3 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition-colors hover:bg-coral-600"
         >
-          Plan your first service
+          Start With The Heart
           <Icon name="arrowRight" size={16} />
         </Link>
+        <p className="mt-3 text-xs font-medium text-charcoal-400">No blank-page pressure. You can change anything as you go.</p>
       </div>
     );
   }
@@ -316,25 +314,14 @@ export default function Dashboard() {
             >
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-coral-400" /> Go live
             </Link>
-          ) : doneCount < 3 ? (
-            // ONE way in — the mode decides the method. Guided walks the
-            // coached loop; Fast opens the 15-minute plan.
+          ) : (
             <Link
-              href={profileMode(state.profile) === "fast" ? "/quick" : "/plan?tab=pray"}
+              href={next.href}
               className="hidden items-center gap-1.5 rounded-full bg-coral-500 px-4 py-2 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition-colors hover:bg-coral-600 sm:flex"
             >
-              <Icon name="sparkle" size={15} /> Plan this service
+              <Icon name="arrowRight" size={15} /> {next.label}
             </Link>
-          ) : allSongs.length > 0 ? (
-            // Plan's done and it isn't service day yet — the natural next move is
-            // to run the set (rehearsal or a preview). Live was hidden here before.
-            <Link
-              href="/live"
-              className="hidden items-center gap-1.5 rounded-full bg-charcoal-800 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-charcoal-900 sm:flex"
-            >
-              <Icon name="music" size={15} /> Run it live
-            </Link>
-          ) : null}
+          )}
           <Link
             href="/profile"
             className="hidden items-center gap-1.5 rounded-full border border-charcoal-100 px-3.5 py-2 text-sm font-semibold text-charcoal-600 transition hover:border-charcoal-200 sm:flex"
@@ -357,7 +344,7 @@ export default function Dashboard() {
             }`}
           />
           <LoopNode label="Plan" status={stageStatus("plan")} href="/plan" />
-          {doneCount < 3 && (
+          {next.id !== "share" && (
             <Link
               href={next.href}
               className="text-[13px] font-medium text-charcoal-400 hover:text-coral-600"
@@ -376,7 +363,7 @@ export default function Dashboard() {
           <LoopNode label="Prep" status={stageStatus("prep")} href="/plan?tab=prep" />
           {stageStatus("prep") === "todo" && (
             <span className="text-[13px] font-medium text-charcoal-300">
-              {daysUntil(svc.date) >= 2 ? "Saturday" : "today"}
+              {daysUntil(svc.date) >= 2 ? `before ${weekdayName(svc.date)}` : "today"}
             </span>
           )}
         </div>
@@ -493,7 +480,7 @@ export default function Dashboard() {
               )}
               {teamRoles.length === 0 && (
                 <p className="border-b border-cream-200 py-3 text-sm text-charcoal-400">
-                  No roster yet for this Sunday.
+                  No roster yet for this {weekdayName(svc.date)}.
                 </p>
               )}
               <div className="flex items-center py-3.5">
@@ -518,9 +505,9 @@ export default function Dashboard() {
           </section>
         )}
 
-        {/* Saturday confidence */}
+        {/* Service confidence */}
         <section className="lg:border-l lg:border-charcoal-100 lg:pl-8">
-          <h2 className="label text-charcoal-400">Saturday confidence</h2>
+          <h2 className="label text-charcoal-400">Service confidence</h2>
           <div className="mt-2 flex flex-col items-center">
             <SunriseGauge pct={conf.pct} />
             <p className="mt-1 max-w-[26ch] text-center text-xs text-charcoal-400">
@@ -528,37 +515,18 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="mt-4 flex flex-col gap-2">
-            {pcs ? (
-              <>
-                <Link
-                  href="/set"
-                  className="flex items-center justify-center gap-2 rounded-full bg-coral-500 px-4 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition-colors hover:bg-coral-600"
-                >
-                  Build the set
-                </Link>
-                <Link
-                  href="/plan"
-                  className="flex items-center justify-center gap-2 rounded-full border border-charcoal-100 px-4 py-2.5 text-sm font-semibold text-charcoal-600 transition-colors hover:border-charcoal-200"
-                >
-                  Open the plan
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link
-                  href="/packet"
-                  className="flex items-center justify-center gap-2 rounded-full bg-coral-500 px-4 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition-colors hover:bg-coral-600"
-                >
-                  Send the packet
-                </Link>
-                <Link
-                  href="/team"
-                  className="flex items-center justify-center gap-2 rounded-full border border-charcoal-100 px-4 py-2.5 text-sm font-semibold text-charcoal-600 transition-colors hover:border-charcoal-200"
-                >
-                  Same team as last week
-                </Link>
-              </>
-            )}
+            <Link
+              href={next.href}
+              className="flex items-center justify-center gap-2 rounded-full bg-coral-500 px-4 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition-colors hover:bg-coral-600"
+            >
+              {next.label}
+            </Link>
+            <Link
+              href={pcs ? "/plan" : "/team"}
+              className="flex items-center justify-center gap-2 rounded-full border border-charcoal-100 px-4 py-2.5 text-sm font-semibold text-charcoal-600 transition-colors hover:border-charcoal-200"
+            >
+              {pcs ? "Open the plan" : "Same team as last week"}
+            </Link>
             {/* Live is always one tap from home whenever there's a set to run —
                 rehearsal, a preview, or Sunday morning. */}
             {allSongs.length > 0 && (

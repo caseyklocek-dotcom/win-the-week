@@ -95,7 +95,7 @@ function SundaySheet({
         {churchName || "Your church"}
       </p>
       <p className="editorial mt-1.5 text-center text-xl text-charcoal-900">
-        {svc.theme ? svc.theme : svc.title || "This Sunday"}
+        {svc.theme ? svc.theme : svc.title || `This ${weekdayName(svc.date)}`}
       </p>
       <p className="mt-0.5 text-center text-xs text-charcoal-400">
         {fullDate(svc.date)} · {serviceTime}
@@ -139,6 +139,7 @@ export default function QuickPlanPage() {
     teamTemplates,
     applyTeamTemplate,
     songLibrary,
+    checkpoint,
   } = useStore();
   const mode = profileMode(state.profile);
   const pcs = pcsMode(state.profile);
@@ -171,6 +172,8 @@ export default function QuickPlanPage() {
     return "send";
   });
   const stepIdx = steps.findIndex((s) => s.key === step);
+  const [stepError, setStepError] = useState("");
+  const [allowIncomplete, setAllowIncomplete] = useState(false);
 
   // ---- the gentle timer — pausable, so an interruption never lies ----
   // Ticks while running, FREEZES the moment the plan is finished — the
@@ -232,7 +235,8 @@ export default function QuickPlanPage() {
     });
   };
 
-  const removeSong = (songId: string) =>
+  const removeSong = (songId: string) => {
+    checkpoint("Song removed from the set");
     patch((s) => ({
       ...s,
       songs: s.songs.filter((x) => x.id !== songId),
@@ -241,6 +245,7 @@ export default function QuickPlanPage() {
         rows: sec.rows.filter((r) => !(r.kind === "song" && r.refId === songId)),
       })),
     }));
+  };
 
   const applySameAsLastWeek = () => {
     const past = state.services
@@ -260,7 +265,16 @@ export default function QuickPlanPage() {
     }));
   };
 
-  const markPlanDone = () => {
+  const markPlanDone = (force = false): boolean => {
+    const blockers = [
+      !done.heart && "Name the heart of the service.",
+      songs.length === 0 && "Add at least one song.",
+      !pcs && openRoles > 0 && `Fill ${openRoles} open ${openRoles === 1 ? "role" : "roles"}.`,
+    ].filter(Boolean) as string[];
+    if (blockers.length && !force) {
+      setStepError(blockers.join(" "));
+      return false;
+    }
     const took = frozen ?? quickTimer.finish(svc.id);
     patch((s) => ({
       ...s,
@@ -268,6 +282,8 @@ export default function QuickPlanPage() {
       // Stamp once — reopening the flow later never overwrites the record.
       ...(s.planSeconds && s.planSeconds > 0 ? {} : { planSeconds: Math.max(1, took) }),
     }));
+    setStepError("");
+    return true;
   };
 
   // ---- suggestions + library search ----
@@ -286,7 +302,22 @@ export default function QuickPlanPage() {
   const totalSec = serviceSetDurationSec(svc);
   const timerPct = Math.min(100, (elapsed / TARGET_SEC) * 100);
 
-  const goNext = () => stepIdx < steps.length - 1 && setStep(steps[stepIdx + 1].key);
+  const goNext = () => {
+    const message =
+      step === "heart" && !done.heart
+        ? "Add a theme, Scripture, or the one thing before moving on."
+        : step === "set" && songs.length === 0
+          ? "Add at least one song before moving on."
+          : step === "team" && openRoles > 0
+            ? `Fill the ${openRoles} open ${openRoles === 1 ? "role" : "roles"}, or remove roles you do not need.`
+            : "";
+    if (message) {
+      setStepError(message);
+      return;
+    }
+    setStepError("");
+    if (stepIdx < steps.length - 1) setStep(steps[stepIdx + 1].key);
+  };
   const goBack = () => stepIdx > 0 && setStep(steps[stepIdx - 1].key);
 
   return (
@@ -363,14 +394,14 @@ export default function QuickPlanPage() {
       {/* ---- body ---- */}
       <div className="mt-8 grid gap-y-8 border-t border-charcoal-100 pt-7 lg:grid-cols-[190px_1.4fr_1fr] lg:gap-y-0">
         {/* stepper */}
-        <nav className="flex gap-1 overflow-x-auto lg:flex-col lg:gap-0 lg:pr-6" aria-label="Steps">
+        <nav className={`grid w-full gap-1 ${pcs ? "grid-cols-3" : "grid-cols-4"} lg:flex lg:flex-col lg:gap-0 lg:pr-6`} aria-label="Steps">
           {steps.map((s, i) => {
             const active = s.key === step;
             return (
               <button
                 key={s.key}
                 onClick={() => setStep(s.key)}
-                className={`flex shrink-0 items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors lg:rounded-none lg:border-b lg:border-cream-200 lg:px-0 ${
+                className={`flex min-w-0 items-center justify-center gap-2 rounded-xl px-1.5 py-3 text-left transition-colors lg:justify-start lg:rounded-none lg:border-b lg:border-cream-200 lg:px-0 ${
                   active ? "" : "opacity-70 hover:opacity-100"
                 }`}
                 aria-current={active ? "step" : undefined}
@@ -422,6 +453,12 @@ export default function QuickPlanPage() {
             </p>
           )}
 
+          {stepError && (
+            <div className="mb-4 rounded-lg border border-wait-border bg-wait-tint px-3 py-2.5 text-sm font-semibold text-wait-ink" role="alert">
+              {stepError}
+            </div>
+          )}
+
           {step === "heart" && (
             <div className="space-y-5">
               {(() => {
@@ -437,7 +474,7 @@ export default function QuickPlanPage() {
                   )
                 );
               })()}
-              <h2 className="label text-charcoal-400">The heart of this Sunday</h2>
+              <h2 className="label text-charcoal-400">The heart of this {weekdayName(svc.date)}</h2>
               {(
                 [
                   { key: "theme", label: "Theme", ph: "e.g. God's word lights the next step" },
@@ -664,20 +701,33 @@ export default function QuickPlanPage() {
               <div className="mt-6 flex flex-wrap gap-2.5">
                 <Link
                   href="/packet"
-                  onClick={markPlanDone}
+                  onClick={(event) => {
+                    if (!markPlanDone(allowIncomplete)) event.preventDefault();
+                  }}
                   className="inline-flex items-center gap-2 rounded-full bg-coral-500 px-5 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition hover:bg-coral-600"
                 >
                   Finish: open the packet <Icon name="arrowRight" size={15} />
                 </Link>
                 {!done.send && (
                   <button
-                    onClick={markPlanDone}
+                    onClick={() => markPlanDone(allowIncomplete)}
                     className="rounded-full border border-charcoal-100 px-5 py-2.5 text-sm font-semibold text-charcoal-600 transition hover:border-charcoal-200"
                   >
                     Just mark the plan done
                   </button>
                 )}
               </div>
+              {stepError && !allowIncomplete && (
+                <button
+                  onClick={() => {
+                    setAllowIncomplete(true);
+                    setStepError("Override enabled. The plan will remain clearly marked incomplete.");
+                  }}
+                  className="mt-3 text-xs font-bold text-charcoal-500 underline decoration-dotted underline-offset-4"
+                >
+                  Continue intentionally with an incomplete plan
+                </button>
+              )}
               {elapsed <= TARGET_SEC && done.heart && songs.length >= 3 && (
                 <p className="mt-5 text-sm font-semibold text-ok-ink">
                   Planned in {fmtClock(elapsed)}. That&rsquo;s the whole point.
@@ -698,7 +748,7 @@ export default function QuickPlanPage() {
             totalRoles={pcs ? 0 : roles.length}
           />
           <p className="mt-2.5 text-center text-xs text-charcoal-400">
-            The Sunday Sheet builds itself as you plan
+            The service sheet builds itself as you plan
           </p>
         </aside>
       </div>

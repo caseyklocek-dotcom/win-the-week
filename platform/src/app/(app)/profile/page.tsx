@@ -520,7 +520,7 @@ export default function ProfilePage() {
           <div className="min-w-0">
             <Label>Guided setup</Label>
             <p className="mt-1 text-xs text-charcoal-400">
-              Walk through each step when you set up a new Sunday. Turn it off to drop
+              Walk through each step when you set up a new service. Turn it off to drop
               straight into the plan.
             </p>
           </div>

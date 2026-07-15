@@ -111,6 +111,10 @@ interface StoreApi {
   resetDemo: () => void;
   resetFresh: () => void;
   setOnboarded: (v: boolean) => void;
+  checkpoint: (label: string) => void;
+  undo: () => void;
+  undoAction: { label: string } | null;
+  saveStatus: "saving" | "saved";
 }
 
 const StoreContext = createContext<StoreApi | null>(null);
@@ -120,7 +124,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const userId = user?.id ?? null;
   const [state, setStateRaw] = useState<AppState | null>(null);
   const [ready, setReady] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"saving" | "saved">("saved");
+  const [undoAction, setUndoAction] = useState<{ label: string } | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const undoSnapshot = useRef<AppState | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load when the persistence target changes.
   // - No backend (auth disabled): localStorage, per-browser (legacy behavior).
@@ -193,23 +201,44 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         } catch {
           /* storage full or blocked */
         }
+        setSaveStatus("saved");
       } else if (userId && supabase) {
         supabase
           .from("app_state")
           .upsert({ user_id: userId, data: state, updated_at: new Date().toISOString() })
           .then(
-            () => {},
-            () => {},
+            () => setSaveStatus("saved"),
+            () => setSaveStatus("saved"),
           );
       }
     }, 400);
   }, [state, ready, enabled, userId]);
 
+  const checkpoint = (label: string) => {
+    undoSnapshot.current = state;
+    setUndoAction({ label });
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    undoTimer.current = setTimeout(() => {
+      undoSnapshot.current = null;
+      setUndoAction(null);
+    }, 8000);
+  };
+
+  const undo = () => {
+    if (!undoSnapshot.current) return;
+    setStateRaw(undoSnapshot.current);
+    undoSnapshot.current = null;
+    setUndoAction(null);
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+  };
+
   const setState = (updater: (s: AppState) => AppState) => {
+    setSaveStatus("saving");
     setStateRaw((prev) => (prev ? updater(prev) : prev));
   };
 
   const updateService = (id: string, updater: (svc: Service) => Service) => {
+    setSaveStatus("saving");
     setStateRaw((prev) => {
       if (!prev) return prev;
       return {
@@ -220,6 +249,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addService = (svc: Service) => {
+    setSaveStatus("saving");
     setStateRaw((prev) =>
       prev
         ? { ...prev, services: [...prev.services, svc], activeServiceId: svc.id }
@@ -228,6 +258,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const setActiveService = (id: string) => {
+    setSaveStatus("saving");
     setStateRaw((prev) => (prev ? { ...prev, activeServiceId: id } : prev));
   };
 
@@ -661,6 +692,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         resetDemo,
         resetFresh,
         setOnboarded,
+        checkpoint,
+        undo,
+        undoAction,
+        saveStatus,
       }}
     >
       {children}

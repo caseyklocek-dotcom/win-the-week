@@ -275,6 +275,56 @@ export interface HourBlock {
   tasks: BlockTask[];
 }
 
+// ---- Calendar review / protected preparation time ----
+// Calendar data stays in the account state during the local beta. Provider
+// OAuth can replace the import boundary later without changing the planning UI.
+export type CalendarProvider = "google" | "microsoft" | "apple" | "ics" | "manual";
+export interface CalendarSource {
+  id: string;
+  name: string;
+  provider: CalendarProvider;
+  color: string;
+  primary?: boolean;
+  writable?: boolean;
+}
+export interface CalendarEventRecord {
+  id: string;
+  title: string;
+  start: string; // ISO timestamp
+  end: string; // ISO timestamp
+  allDay?: boolean;
+  provider?: CalendarProvider;
+  calendarId?: string;
+  color?: string;
+}
+export interface CalendarSettings {
+  provider?: CalendarProvider;
+  connected: boolean;
+  setupComplete?: boolean;
+  previewMode?: boolean;
+  calendarName?: string;
+  lastImportedAt?: string;
+  lastSyncedAt?: string;
+  calendars?: CalendarSource[];
+  selectedCalendarIds?: string[];
+  detailMode?: "titles" | "busy";
+  events: CalendarEventRecord[];
+}
+export interface PreparationBlock {
+  id: string;
+  label: string;
+  kind: "pray" | "plan" | "team" | "rehearse" | "prep";
+  start: string; // ISO timestamp
+  end: string; // ISO timestamp
+  externalEventId?: string;
+  syncedProvider?: CalendarProvider;
+}
+export interface ServiceCalendarPlan {
+  reviewedAt?: string;
+  protectedBlocks: PreparationBlock[];
+  acknowledgedConflictIds?: string[];
+}
+
 // ---- Comms ----
 export interface CommItem {
   id: string;
@@ -308,6 +358,7 @@ export interface Service {
   blocks: HourBlock[];
   loopSeconds?: Record<number, number>; // guided-coach time banked per hour index
   loopHour?: number; // where the guided coach left off (hour index)
+  calendarPlan?: ServiceCalendarPlan;
   songs: Song[];
   elements?: SetElement[]; // non-song moments referenced by SetRow (lazily migrated)
   setSections: SetSection[];
@@ -548,6 +599,7 @@ export interface AppState {
   community?: CommunityState; // peer discussion + resource sharing (lazily seeded)
   leaders?: LeaderTrack[]; // Leader Track — people the leader is discipling (lazily seeded)
   coach?: CoachSession | null; // active guided "walk me through it" session
+  calendar?: CalendarSettings;
   services: Service[];
   activeServiceId: string;
 }

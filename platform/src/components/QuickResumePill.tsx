@@ -75,7 +75,7 @@ export function QuickResumePill() {
     // A floating action chip — committed dark in BOTH themes (raw hex, like a
     // toast), since theme tokens would flip it light-on-light in dark mode.
     <div
-      className="no-print anim-fade-in fixed inset-x-0 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-40 mx-auto flex w-max max-w-[calc(100%-2rem)] items-center gap-1 rounded-full bg-[#2e2e2e] py-1.5 pl-1.5 pr-1.5 text-sm font-bold text-[#ffffff] shadow-lg lg:bottom-6"
+      className="no-print anim-fade-in fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-3 z-40 flex w-max max-w-[calc(100%-2rem)] items-center gap-1 rounded-full bg-[#2e2e2e] py-1.5 pl-1.5 pr-1.5 text-sm font-bold text-[#ffffff] shadow-lg lg:bottom-6 lg:left-1/2 lg:right-auto lg:-translate-x-1/2"
     >
       <Link
         href="/quick"
@@ -87,7 +87,7 @@ export function QuickResumePill() {
           size={15}
           className={running ? "text-[#ff8c82]" : "text-[#8d877e]"}
         />
-        <span className="whitespace-nowrap">{running ? "Back to the 15-minute plan" : "Plan paused"}</span>
+        <span className="hidden whitespace-nowrap sm:inline">{running ? "Back to the 15-minute plan" : "Plan paused"}</span>
         <span
           className={`rounded-full px-2 py-0.5 tabular-nums ${
             running

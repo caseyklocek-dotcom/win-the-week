@@ -18,6 +18,7 @@ function spotFor(target?: string): string | null {
   if (!target) return null;
   if (target.startsWith("/set")) return "set";
   if (target.startsWith("/team")) return "team";
+  if (target.startsWith("/calendar?review=week")) return "week-review";
   if (target.startsWith("/calendar")) return "runway";
   if (target.startsWith("/rehearse")) return "rehearse";
   if (target.includes("tab=pray")) return "pray";
@@ -163,7 +164,18 @@ export function Coach() {
   const loopComplete = firstIncomplete === -1;
   const seconds = (since?: number) => (since ? Math.round((Date.now() - since) / 1000) : 0);
 
-  const toggleTask = (taskId: string) =>
+  const toggleTask = (taskId: string) => {
+    const selected = block.tasks.find((item) => item.id === taskId);
+    if (
+      selected?.target?.startsWith("/calendar?review=week") &&
+      !selected.done &&
+      !svc.calendarPlan?.reviewedAt
+    ) {
+      setActiveService(svc.id);
+      setMode("work");
+      router.push(selected.target);
+      return;
+    }
     setState((s) => ({
       ...s,
       services: s.services.map((x) =>
@@ -179,6 +191,7 @@ export function Coach() {
             },
       ),
     }));
+  };
 
   const pause = () =>
     setState((s) => {

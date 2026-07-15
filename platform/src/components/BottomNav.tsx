@@ -19,7 +19,7 @@ const PRIMARY: NavItem[] = [
     href: "/plan",
     label: "Services",
     icon: "services",
-    match: ["/plan", "/set", "/team", "/rehearse", "/packet"],
+    match: ["/plan", "/set", "/team", "/rehearse", "/send", "/packet", "/quick"],
   },
   { href: "/calendar", label: "Calendar", icon: "calendar" },
   { href: "/songs", label: "Songs", icon: "music" },

@@ -208,7 +208,7 @@ export function blocksTemplate(week: number): HourBlock[] {
       outcome: "Next 8 weeks have a skeleton; this week is protected.",
       tasks: [
         t("Pray and self check-in", "pray", d0(true), "/plan?tab=pray", "Step away from screens for a few minutes. Pray, then name honestly how much time and energy you have this week."),
-        t("Scan the week for anything that interrupts it", "plan", d0(true), "/calendar", "Open your personal and work calendars. Flag anything that collides with your planning time or with Sunday."),
+        t("Review your week and protect preparation time", "plan", d0(true), "/calendar?review=week", "Bring your calendar into Win the Week, notice real conflicts, and protect the preparation windows that fit this week."),
         t("Sweep 8 → 4 → 3 → 2 → 1: set themes, refine the runway", "plan", d0(true), "/calendar", "On the runway, touch each upcoming Sunday: set a theme eight weeks out, then refine as each one gets closer."),
       ],
     },
@@ -394,12 +394,32 @@ export function migrateSchedule(state: AppState): AppState {
         s.blocks[0].tasks?.[0]?.target === undefined ||
         s.blocks[0].tasks?.[0]?.how === undefined),
   );
-  if (!stale) return state;
+  const updateCalendarTask = (service: Service): Service => ({
+    ...service,
+    blocks: service.blocks.map((block) => ({
+      ...block,
+      tasks: block.tasks.map((task) =>
+        /scan the week|check your calendar|review your week/i.test(task.label)
+          ? {
+              ...task,
+              label: "Review your week and protect preparation time",
+              target: "/calendar?review=week",
+              how: "Bring your calendar into Win the Week, notice real conflicts, and protect the preparation windows that fit this week.",
+            }
+          : task,
+      ),
+    })),
+  });
+  if (!stale) {
+    return { ...state, services: state.services.map(updateCalendarTask) };
+  }
   const order = [...state.services].sort((a, b) => a.date.localeCompare(b.date));
   const weekOf = new Map(order.map((s, i) => [s.id, i]));
   return {
     ...state,
-    services: state.services.map((s) => ({ ...s, blocks: blocksTemplate(weekOf.get(s.id) ?? 1) })),
+    services: state.services.map((s) =>
+      updateCalendarTask({ ...s, blocks: blocksTemplate(weekOf.get(s.id) ?? 1) }),
+    ),
   };
 }
 

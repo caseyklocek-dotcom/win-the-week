@@ -57,9 +57,9 @@ const STEPS: Step[] = [
   },
   {
     route: "/calendar",
-    selector: '[data-tour="runway"]',
-    title: "Stay weeks ahead",
-    body: "The runway shows what to do 8, 4, 3, 2, and 1 weeks out, so no Sunday sneaks up on you.",
+    selector: '[data-coach="week-review"]',
+    title: "Review your real week",
+    body: "Bring in Google, Outlook, or Apple calendar commitments, protect preparation time, then use the 8 · 4 · 3 · 2 · 1 runway to stay ahead.",
   },
   {
     route: "/invest",

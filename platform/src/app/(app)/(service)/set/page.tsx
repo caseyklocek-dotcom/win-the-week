@@ -27,7 +27,6 @@ import type {
   Song,
   SetSection,
   SetElement,
-  SetRow,
 } from "@/lib/types";
 
 function id(p: string) {
@@ -53,7 +52,7 @@ function parseDuration(v: string): number {
 }
 
 export default function SetPage() {
-  const { activeService, updateService, addLibrarySong, updateLibrarySong } = useStore();
+  const { activeService, updateService, addLibrarySong, updateLibrarySong, checkpoint } = useStore();
   const svc = activeService;
   const patch = (updater: (s: Service) => Service) => updateService(svc.id, updater);
 
@@ -70,6 +69,7 @@ export default function SetPage() {
   const elementById = (eid: string) => (svc.elements ?? []).find((e) => e.id === eid);
   const totalSec = serviceSetDurationSec(svc);
   const songCount = svc.setSections.reduce((n, s) => n + sectionSongIds(s).length, 0);
+  const hasSetContent = svc.setSections.some((section) => section.rows.length > 0);
 
   // ---- song mutations ----
   const updateSong = (sid: string, fields: Partial<Song>) => {
@@ -134,7 +134,8 @@ export default function SetPage() {
     }));
 
   // ---- row mutations (remove / move) ----
-  const removeRow = (sectionId: string, idx: number) =>
+  const removeRow = (sectionId: string, idx: number) => {
+    checkpoint("Item removed from the set");
     patch((s) => {
       const sec = s.setSections.find((x) => x.id === sectionId);
       const row = sec?.rows[idx];
@@ -150,6 +151,7 @@ export default function SetPage() {
         setSections,
       };
     });
+  };
 
   // Move a row within its section, or across to an adjacent section at the edges.
   const nudgeRow = (sectionId: string, idx: number, dir: -1 | 1) =>
@@ -213,7 +215,8 @@ export default function SetPage() {
       return { ...s, setSections: next };
     });
 
-  const removeSection = (section: SetSection) =>
+  const removeSection = (section: SetSection) => {
+    checkpoint(`${section.label} section removed`);
     patch((s) => {
       const songIds = sectionSongIds(section);
       const elemIds = section.rows
@@ -226,6 +229,7 @@ export default function SetPage() {
         setSections: s.setSections.filter((sec) => sec.id !== section.id),
       };
     });
+  };
 
   const moveSection = (from: number, to: number) =>
     patch((s) => ({ ...s, setSections: reorder(s.setSections, from, to) }));
@@ -249,28 +253,71 @@ export default function SetPage() {
         </div>
       </div>
 
-      {svc.setSections.map((section, secIdx) => (
-        <SectionCard
-          key={section.id}
-          section={section}
-          subtotalSec={sectionDurationSec(section, svc)}
-          isFirst={secIdx === 0}
-          isLast={secIdx === svc.setSections.length - 1}
-          songById={songById}
-          elementById={elementById}
-          onRename={(v) => renameSection(section.id, v)}
-          onRemoveSection={() => removeSection(section)}
-          onMoveSectionUp={() => moveSection(secIdx, secIdx - 1)}
-          onMoveSectionDown={() => moveSection(secIdx, secIdx + 1)}
-          onAdd={() => setAddMenu(section.id)}
-          onRemoveRow={(idx) => removeRow(section.id, idx)}
-          onNudgeRow={(idx, dir) => nudgeRow(section.id, idx, dir)}
-          onUpdateSong={updateSong}
-          onUpdateElement={updateElement}
-          onRowDragStart={(idx) => (dragRow.current = { sec: section.id, idx })}
-          onRowDrop={(idx) => moveRowTo(section.id, idx)}
-        />
-      ))}
+      {!hasSetContent ? (
+        <div className="rounded-2xl border border-dashed border-charcoal-200 bg-white/60 p-5 sm:p-6">
+          <div className="max-w-xl">
+            <h2 className="text-lg font-bold text-charcoal-900">Shape the service</h2>
+            <p className="mt-1 text-sm text-charcoal-500">
+              These sections are only a starting point. Rename or remove any of them, then add the first song or moment where it belongs.
+            </p>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            {svc.setSections.map((section) => (
+              <div
+                key={section.id}
+                className="group flex items-center gap-1 rounded-xl border border-charcoal-100 bg-white p-1.5 transition focus-within:border-coral-300 hover:border-charcoal-200"
+              >
+                <input
+                  value={section.label}
+                  onChange={(event) => renameSection(section.id, event.target.value)}
+                  aria-label={`Rename ${section.label || "section"}`}
+                  placeholder="Section name"
+                  className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-sm font-bold text-charcoal-700 outline-none placeholder:font-medium placeholder:text-charcoal-300"
+                />
+                <button
+                  onClick={() => setAddMenu(section.id)}
+                  aria-label={`Add to ${section.label || "section"}`}
+                  title="Add a song or moment"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-charcoal-400 transition hover:bg-coral-100 hover:text-coral-600"
+                >
+                  <Icon name="plus" size={14} />
+                </button>
+                <button
+                  onClick={() => removeSection(section)}
+                  aria-label={`Remove ${section.label || "section"}`}
+                  title="Remove section"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-charcoal-300 transition hover:bg-no-tint hover:text-error sm:opacity-0 sm:focus:opacity-100 sm:group-hover:opacity-100"
+                >
+                  <Icon name="trash" size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        svc.setSections.map((section, secIdx) => (
+          <SectionCard
+            key={section.id}
+            section={section}
+            subtotalSec={sectionDurationSec(section, svc)}
+            isFirst={secIdx === 0}
+            isLast={secIdx === svc.setSections.length - 1}
+            songById={songById}
+            elementById={elementById}
+            onRename={(v) => renameSection(section.id, v)}
+            onRemoveSection={() => removeSection(section)}
+            onMoveSectionUp={() => moveSection(secIdx, secIdx - 1)}
+            onMoveSectionDown={() => moveSection(secIdx, secIdx + 1)}
+            onAdd={() => setAddMenu(section.id)}
+            onRemoveRow={(idx) => removeRow(section.id, idx)}
+            onNudgeRow={(idx, dir) => nudgeRow(section.id, idx, dir)}
+            onUpdateSong={updateSong}
+            onUpdateElement={updateElement}
+            onRowDragStart={(idx) => (dragRow.current = { sec: section.id, idx })}
+            onRowDrop={(idx) => moveRowTo(section.id, idx)}
+          />
+        ))
+      )}
 
       <button
         onClick={() =>

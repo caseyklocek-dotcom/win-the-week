@@ -10,11 +10,11 @@ import { useStore } from "@/lib/store";
 import { pcsMode } from "@/lib/mode";
 
 const ALL_TABS = [
-  { href: "/plan", label: "Plan" },
+  { href: "/plan", label: "Overview" },
   { href: "/set", label: "Set" },
   { href: "/team", label: "Team", scheduling: true },
   { href: "/rehearse", label: "Rehearse" },
-  { href: "/send", label: "Send", scheduling: true },
+  { href: "/send", label: "Share", scheduling: true },
   { href: "/packet", label: "Packet", scheduling: true },
 ];
 

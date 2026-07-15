@@ -115,7 +115,7 @@ function buildSummary(svc: Service, people: Person[]): string {
 }
 
 export function ServiceActions() {
-  const { activeService: svc, people, addService } = useStore();
+  const { activeService: svc, people, addService, checkpoint } = useStore();
   const [copied, setCopied] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   // We just handed off to mailto:/sms:, which silently does nothing when no
@@ -190,6 +190,7 @@ export function ServiceActions() {
   };
 
   const duplicate = () => {
+    checkpoint("Service duplicated");
     const next = makeServiceFromTemplate(svc, addDaysISO(svc.date, 7), svc.season);
     next.title = svc.title;
     next.scripture = svc.scripture;

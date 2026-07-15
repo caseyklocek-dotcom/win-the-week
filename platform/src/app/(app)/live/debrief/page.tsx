@@ -96,6 +96,7 @@ export default function DebriefPage() {
 
   const live = svc.live;
   const drift = totals.actual - totals.planned;
+  const preparationDone = svc.status.pray === "done" && svc.status.plan === "done" && svc.status.prep === "done";
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -118,6 +119,25 @@ export default function DebriefPage() {
       </div>
 
       {/* totals */}
+      <div className="mt-7 rounded-2xl border border-coral-200 bg-gradient-to-br from-white to-coral-100/60 p-5">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-coral-500 text-white shadow-[var(--shadow-coral)]">
+            <Icon name="heart" size={18} />
+          </span>
+          <div>
+            <p className="label text-coral-600">Sunday carried</p>
+            <p className="mt-1 text-lg font-bold text-charcoal-900">
+              {preparationDone
+                ? "You did the work before Sunday, so you could be present on Sunday."
+                : "Sunday is in the books. Keep what helped, and release the rest."}
+            </p>
+            <p className="mt-1 text-sm text-charcoal-500">
+              Capture one honest thought while it&apos;s still fresh. Next week&apos;s plan will be better for it.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="mt-7 flex flex-wrap gap-x-10 gap-y-3 border-t border-charcoal-100 pt-6">
         <div>
           <p className="label text-charcoal-400">Planned</p>
@@ -232,7 +252,7 @@ export default function DebriefPage() {
           href="/plan?tab=prep"
           className="rounded-full border border-charcoal-100 px-5 py-2.5 text-sm font-semibold text-charcoal-600 transition hover:border-charcoal-200"
         >
-          Open the evaluation
+          Carry Sunday Into Next Week
         </Link>
       </div>
     </div>
