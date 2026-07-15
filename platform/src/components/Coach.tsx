@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { Icon } from "./Icon";
 
@@ -107,6 +107,7 @@ function Spotlight({ spot }: { spot: string }) {
 export function Coach() {
   const { state, setState, setActiveService } = useStore();
   const router = useRouter();
+  const pathname = usePathname();
   const [, force] = useState(0);
   const [mode, setMode] = useState<"focus" | "work">("focus");
   const coach = state.coach;
@@ -171,6 +172,17 @@ export function Coach() {
       !selected.done &&
       !svc.calendarPlan?.reviewedAt
     ) {
+      if (pathname === "/calendar") {
+        setState((s) => ({
+          ...s,
+          services: s.services.map((x) => x.id !== svc.id ? x : {
+            ...x,
+            calendarPlan: { ...x.calendarPlan, reviewedAt: new Date().toISOString(), protectedBlocks: x.calendarPlan?.protectedBlocks ?? [] },
+            blocks: x.blocks.map((b, i) => i !== coach.hourIndex ? b : { ...b, tasks: b.tasks.map((t) => t.id === taskId ? { ...t, done: true } : t) }),
+          }),
+        }));
+        return;
+      }
       setActiveService(svc.id);
       setMode("work");
       router.push(selected.target);

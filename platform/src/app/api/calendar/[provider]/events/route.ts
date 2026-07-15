@@ -85,7 +85,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ pr
   for (const block of blocks) {
     const baseUrl = provider === "google" ? `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events` : `https://graph.microsoft.com/v1.0/me/calendars/${encodeURIComponent(calendarId)}/events`;
     const url = block.externalEventId ? `${baseUrl}/${encodeURIComponent(block.externalEventId)}` : baseUrl;
-    const body = provider === "google" ? { summary: block.label, description: "Protected preparation time from Win the Week", start: { dateTime: block.start }, end: { dateTime: block.end } } : { subject: block.label, body: { contentType: "text", content: "Protected preparation time from Win the Week" }, start: { dateTime: block.start, timeZone: "UTC" }, end: { dateTime: block.end, timeZone: "UTC" } };
+    const body = provider === "google" ? { summary: block.label, description: "Protected preparation time from Win the Week", extendedProperties: { private: { winTheWeekBlockId: block.id } }, start: { dateTime: block.start }, end: { dateTime: block.end } } : { subject: block.label, body: { contentType: "text", content: "Protected preparation time from Win the Week" }, start: { dateTime: block.start, timeZone: "UTC" }, end: { dateTime: block.end, timeZone: "UTC" } };
     const response = await fetch(url, { method: block.externalEventId ? "PATCH" : "POST", headers: { authorization: `Bearer ${session.accessToken}`, "content-type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
     if (!response.ok) return NextResponse.json({ error: "Some protected times could not be added." }, { status: 502 });
     if (block.externalEventId) {
@@ -96,4 +96,19 @@ export async function POST(request: NextRequest, context: { params: Promise<{ pr
     }
   }
   return NextResponse.json({ created, updated });
+}
+
+export async function DELETE(request: NextRequest, context: { params: Promise<{ provider: string }> }) {
+  const { provider } = await context.params;
+  if (provider !== "google" && provider !== "microsoft") return NextResponse.json({ error: "Unsupported provider" }, { status: 400 });
+  const session = await sessionFor(provider);
+  if (!session) return NextResponse.json({ error: "Calendar is not connected" }, { status: 401 });
+  const { calendarId, eventId } = await request.json();
+  if (!calendarId || !eventId) return NextResponse.json({ error: "Invalid calendar update" }, { status: 400 });
+  const url = provider === "google"
+    ? `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`
+    : `https://graph.microsoft.com/v1.0/me/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`;
+  const response = await fetch(url, { method: "DELETE", headers: { authorization: `Bearer ${session.accessToken}` }, cache: "no-store" });
+  if (!response.ok && response.status !== 404) return NextResponse.json({ error: "Protected time could not be removed." }, { status: 502 });
+  return NextResponse.json({ removed: true });
 }

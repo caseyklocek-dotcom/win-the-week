@@ -6,9 +6,10 @@ import { useStore } from "@/lib/store";
 import { Icon } from "@/components/Icon";
 import { makeServiceFromTemplate, nextSunday } from "@/lib/seed";
 import { serviceDisplayTitle } from "@/lib/set";
-import type { CalendarProvider, PrepStatus, PreparationBlock, Service } from "@/lib/types";
+import type { CalendarProvider, PrepStatus, PreparationBlock, Service, WeeklyAvailability } from "@/lib/types";
 import {
   eventsForServiceWeek,
+  defaultAvailability,
   parseIcs,
   preparationBlocksToIcs,
   previewCalendar,
@@ -110,8 +111,8 @@ export default function CalendarPage() {
     [state.calendar?.events, activeService.date],
   );
   const proposedBlocks = useMemo(
-    () => suggestPreparationBlocks(activeService, weekEvents),
-    [activeService, weekEvents],
+    () => suggestPreparationBlocks(activeService, weekEvents, state.calendar?.availability ?? defaultAvailability()),
+    [activeService, state.calendar?.availability, weekEvents],
   );
   const protectedBlocks = activeService.calendarPlan?.protectedBlocks ?? [];
 
@@ -161,6 +162,13 @@ export default function CalendarPage() {
     return () => window.removeEventListener("focus", onFocus);
   }, [refreshLiveCalendar, state.calendar?.connected, state.calendar?.provider]);
 
+  useEffect(() => {
+    const provider = state.calendar?.connected ? state.calendar.provider : undefined;
+    if (provider !== "google" && provider !== "microsoft") return;
+    const timer = window.setInterval(() => void refreshLiveCalendar(provider), 60_000);
+    return () => window.clearInterval(timer);
+  }, [refreshLiveCalendar, state.calendar?.connected, state.calendar?.provider]);
+
   const importCalendar = async (file: File, provider: CalendarProvider, detailMode: "titles" | "busy") => {
     const parsed = parseIcs(await file.text(), provider);
     const source = { id: `imported-${provider}`, name: file.name.replace(/\.ics$/i, ""), provider, color: "#8b7bb7", writable: false };
@@ -206,19 +214,43 @@ export default function CalendarPage() {
     }));
   };
 
-  const protectBlock = (block: PreparationBlock) =>
+  const writableCalendar = () => state.calendar?.calendars?.find((calendar) => calendar.writable && (calendar.primary || state.calendar?.selectedCalendarIds?.includes(calendar.id)));
+
+  const syncBlocks = async (blocks: PreparationBlock[]) => {
+    const provider = state.calendar?.connected ? state.calendar.provider : undefined;
+    const writable = writableCalendar();
+    if ((provider !== "google" && provider !== "microsoft") || !writable || !blocks.length) return;
+    setSyncing(true);
+    try {
+      const response = await fetch(`/api/calendar/${provider}/events`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ calendarId: writable.id, blocks }) });
+      if (!response.ok) throw new Error();
+      const data = await response.json();
+      const ids = new Map<string, string>(data.created.map((item: { blockId: string; externalEventId: string }) => [item.blockId, item.externalEventId]));
+      if (ids.size) updateService(activeService.id, (service) => ({ ...service, calendarPlan: { ...service.calendarPlan, protectedBlocks: (service.calendarPlan?.protectedBlocks ?? []).map((block) => ids.has(block.id) ? { ...block, externalEventId: ids.get(block.id), syncedProvider: provider } : block) } }));
+      setSyncMessage(data.created.length ? "Added to your calendar" : "Changes synced to your calendar");
+      void refreshLiveCalendar(provider);
+    } catch { setSyncMessage("Calendar sync needs attention. Your plan is still saved here."); }
+    finally { setSyncing(false); }
+  };
+
+  const protectBlock = (block: PreparationBlock) => {
+    const existing = protectedBlocks.find((item) => item.id === block.id);
+    const syncedBlock = { ...block, externalEventId: block.externalEventId ?? existing?.externalEventId, syncedProvider: block.syncedProvider ?? existing?.syncedProvider };
     updateService(activeService.id, (service) => ({
       ...service,
       calendarPlan: {
         ...service.calendarPlan,
         protectedBlocks: [
           ...(service.calendarPlan?.protectedBlocks ?? []).filter((item) => item.id !== block.id),
-          block,
+          syncedBlock,
         ],
       },
     }));
+    void syncBlocks([syncedBlock]);
+  };
 
   const removeBlock = (id: string) => {
+    const removed = protectedBlocks.find((block) => block.id === id);
     checkpoint("Protected time removed");
     updateService(activeService.id, (service) => ({
       ...service,
@@ -227,6 +259,20 @@ export default function CalendarPage() {
         protectedBlocks: (service.calendarPlan?.protectedBlocks ?? []).filter((item) => item.id !== id),
       },
     }));
+    const provider = state.calendar?.connected ? state.calendar.provider : undefined;
+    const writable = writableCalendar();
+    if (removed?.externalEventId && writable && (provider === "google" || provider === "microsoft")) {
+      void (async () => {
+        setSyncing(true);
+        try {
+          const response = await fetch(`/api/calendar/${provider}/events`, { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ calendarId: writable.id, eventId: removed.externalEventId }) });
+          if (!response.ok) throw new Error();
+          setSyncMessage("Removed from your calendar");
+          void refreshLiveCalendar(provider);
+        } catch { setSyncMessage("Removed here, but your calendar needs attention."); }
+        finally { setSyncing(false); }
+      })();
+    }
   };
 
   const changeCalendar = () => {
@@ -236,11 +282,22 @@ export default function CalendarPage() {
 
   const autoPlace = () => {
     checkpoint("Preparation times auto-placed");
+    const merged = proposedBlocks.map((block) => {
+      const previous = protectedBlocks.find((item) => item.id === block.id);
+      return previous ? { ...block, externalEventId: previous.externalEventId, syncedProvider: previous.syncedProvider } : block;
+    });
     updateService(activeService.id, (service) => ({
       ...service,
-      calendarPlan: { ...service.calendarPlan, protectedBlocks: proposedBlocks },
+      calendarPlan: { ...service.calendarPlan, protectedBlocks: merged },
     }));
+    void syncBlocks(merged);
   };
+
+  const changeAvailability = (day: number, patch: Partial<WeeklyAvailability>) => setState((current) => {
+    if (!current.calendar) return current;
+    const availability = current.calendar.availability ?? defaultAvailability();
+    return { ...current, calendar: { ...current.calendar, availability: availability.map((window) => window.day === day ? { ...window, ...patch } : window) } };
+  });
 
   const toggleCalendar = (id: string) => setState((current) => {
     if (!current.calendar) return current;
@@ -269,7 +326,7 @@ export default function CalendarPage() {
   const addProtectedTimesToCalendar = async () => {
     if (!protectedBlocks.length) return;
     if (state.calendar?.connected && (state.calendar.provider === "google" || state.calendar.provider === "microsoft")) {
-      const writable = state.calendar.calendars?.find((calendar) => calendar.writable && (calendar.primary || state.calendar?.selectedCalendarIds?.includes(calendar.id)));
+      const writable = writableCalendar();
       if (!writable) { setSyncMessage("Choose a writable calendar before syncing protected times."); return; }
       setSyncing(true);
       try {
@@ -367,6 +424,24 @@ export default function CalendarPage() {
               <button onClick={changeCalendar} className="text-xs font-bold text-coral-600">Calendar Setup</button>
             </div>
 
+            <details className="mt-4 rounded-xl border border-charcoal-100 bg-cream-50 px-4 py-3">
+              <summary className="cursor-pointer list-none text-sm font-bold text-charcoal-800">
+                Scheduling hours <span className="ml-1 font-normal text-charcoal-500">Choose when Auto-Place can schedule preparation work.</span>
+              </summary>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {(state.calendar.availability ?? defaultAvailability()).map((window) => {
+                  const label = new Date(2024, 0, window.day + 7).toLocaleDateString("en-US", { weekday: "short" });
+                  return <div key={window.day} className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 ${window.enabled ? "border-charcoal-100 bg-white" : "border-transparent bg-cream-100 opacity-70"}`}>
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-charcoal-700"><input type="checkbox" checked={window.enabled} onChange={(event) => changeAvailability(window.day, { enabled: event.target.checked })} />{label}</label>
+                    <input aria-label={`${label} start time`} type="time" value={window.start} disabled={!window.enabled} onChange={(event) => changeAvailability(window.day, { start: event.target.value })} className="ml-auto w-[76px] rounded border border-charcoal-100 bg-white px-1 py-1 text-xs" />
+                    <span className="text-xs text-charcoal-400">–</span>
+                    <input aria-label={`${label} end time`} type="time" value={window.end} disabled={!window.enabled} onChange={(event) => changeAvailability(window.day, { end: event.target.value })} className="w-[76px] rounded border border-charcoal-100 bg-white px-1 py-1 text-xs" />
+                  </div>;
+                })}
+              </div>
+              <p className="mt-3 text-xs text-charcoal-500">Auto-Place only uses these windows and skips a block when no open time fits. You can always drag a block anywhere afterward.</p>
+            </details>
+
             <UnifiedWeekCalendar
               serviceDate={activeService.date}
               calendars={state.calendar.calendars ?? []}
@@ -383,7 +458,7 @@ export default function CalendarPage() {
             <div className="mt-5 flex flex-wrap items-center gap-2.5 border-t border-charcoal-100 pt-5">
               <button onClick={markReviewed} className="inline-flex items-center gap-1.5 rounded-full bg-coral-500 px-5 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-coral)]"><Icon name="check" size={14} /> Finish Week Review</button>
               {protectedBlocks.length > 0 && (
-                <button disabled={syncing} onClick={() => void addProtectedTimesToCalendar()} className="inline-flex items-center gap-1.5 rounded-full border border-coral-300 px-4 py-2.5 text-sm font-bold text-coral-600 disabled:opacity-50"><Icon name={syncing ? "rotate" : "calendar"} size={14} /> {syncing ? "Syncing…" : state.calendar.connected ? "Sync Protected Times" : "Export Protected Times"}</button>
+                <button disabled={syncing} onClick={() => void addProtectedTimesToCalendar()} className="inline-flex items-center gap-1.5 rounded-full border border-coral-300 px-4 py-2.5 text-sm font-bold text-coral-600 disabled:opacity-50"><Icon name={syncing ? "rotate" : "calendar"} size={14} /> {syncing ? "Syncing…" : state.calendar.connected ? "Sync Again" : "Export Protected Times"}</button>
               )}
               {importMessage && <span className="text-xs font-semibold text-charcoal-500">{importMessage}</span>}
               {syncMessage && <span role="status" className="text-xs font-semibold text-charcoal-500">{syncMessage}</span>}

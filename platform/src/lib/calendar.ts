@@ -1,4 +1,4 @@
-import type { CalendarEventRecord, CalendarProvider, CalendarSource, PreparationBlock, Service } from "./types";
+import type { CalendarEventRecord, CalendarProvider, CalendarSource, PreparationBlock, Service, WeeklyAvailability } from "./types";
 
 const DAY = 86_400_000;
 
@@ -112,7 +112,29 @@ export function parseIcs(text: string, provider: CalendarProvider = "ics"): Cale
   });
 }
 
-export function suggestPreparationBlocks(service: Service, events: CalendarEventRecord[]): PreparationBlock[] {
+const minutes = (value: string) => {
+  const [hour, minute] = value.split(":").map(Number);
+  return hour * 60 + minute;
+};
+
+export const defaultAvailability = (): WeeklyAvailability[] =>
+  Array.from({ length: 7 }, (_, day) => ({ day, enabled: true, start: "09:00", end: "17:00" }));
+
+function openSlot(day: Date, duration: number, events: CalendarEventRecord[], availability: WeeklyAvailability[]) {
+  const window = availability.find((item) => item.day === day.getDay() && item.enabled);
+  if (!window || minutes(window.end) - minutes(window.start) < duration) return null;
+  const earliest = minutes(window.start);
+  const latest = minutes(window.end) - duration;
+  for (let offset = earliest; offset <= latest; offset += 15) {
+    const start = new Date(day);
+    start.setHours(Math.floor(offset / 60), offset % 60, 0, 0);
+    const end = new Date(start.getTime() + duration * 60_000);
+    if (!events.some((event) => new Date(event.end) > start && new Date(event.start) < end)) return { start, end };
+  }
+  return null;
+}
+
+export function suggestPreparationBlocks(service: Service, events: CalendarEventRecord[], availability = defaultAvailability()): PreparationBlock[] {
   const serviceDay = startOfLocalDay(service.date);
   const suggestions = [
     { daysBefore: 5, hour: 19, duration: 45, label: "Pray and name the heart", kind: "pray" as const },
@@ -122,24 +144,18 @@ export function suggestPreparationBlocks(service: Service, events: CalendarEvent
     { daysBefore: 1, hour: 10, duration: 30, label: "Final preparation", kind: "prep" as const },
   ];
 
-  return suggestions.map((suggestion) => {
-    let start = new Date(serviceDay);
-    start.setDate(start.getDate() - suggestion.daysBefore);
-    start.setHours(suggestion.hour, 0, 0, 0);
-    let end = new Date(start.getTime() + suggestion.duration * 60_000);
-    for (let tries = 0; tries < 8; tries++) {
-      const collision = events.some((event) => new Date(event.end) > start && new Date(event.start) < end);
-      if (!collision) break;
-      start = new Date(start.getTime() + 60 * 60_000);
-      end = new Date(start.getTime() + suggestion.duration * 60_000);
-    }
-    return {
+  return suggestions.flatMap((suggestion) => {
+    const day = new Date(serviceDay);
+    day.setDate(day.getDate() - suggestion.daysBefore);
+    const slot = openSlot(day, suggestion.duration, events, availability);
+    if (!slot) return [];
+    return [{
       id: `${service.id}_${suggestion.kind}`,
       label: suggestion.label,
       kind: suggestion.kind,
-      start: start.toISOString(),
-      end: end.toISOString(),
-    };
+      start: slot.start.toISOString(),
+      end: slot.end.toISOString(),
+    }];
   });
 }
 

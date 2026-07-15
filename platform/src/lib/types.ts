@@ -308,7 +308,15 @@ export interface CalendarSettings {
   calendars?: CalendarSource[];
   selectedCalendarIds?: string[];
   detailMode?: "titles" | "busy";
+  availability?: WeeklyAvailability[];
   events: CalendarEventRecord[];
+}
+export interface WeeklyAvailability {
+  /** JavaScript weekday: 0 is Sunday, 6 is Saturday. */
+  day: number;
+  enabled: boolean;
+  start: string; // local HH:mm
+  end: string; // local HH:mm
 }
 export interface PreparationBlock {
   id: string;
