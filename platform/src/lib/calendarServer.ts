@@ -86,7 +86,21 @@ export async function refreshCalendarSession(
 export function authorizationUrl(provider: LiveCalendarProvider, redirectUri: string, state: string) {
   const config = providerEnv(provider);
   if (provider === "google") {
-    const params = new URLSearchParams({ client_id: config.clientId!, redirect_uri: redirectUri, response_type: "code", access_type: "offline", prompt: "consent", scope: "openid email https://www.googleapis.com/auth/calendar", state });
+    const params = new URLSearchParams({
+      client_id: config.clientId!,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      access_type: "offline",
+      prompt: "consent select_account",
+      include_granted_scopes: "true",
+      scope: [
+        "openid",
+        "email",
+        "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+        "https://www.googleapis.com/auth/calendar.events",
+      ].join(" "),
+      state,
+    });
     return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
   }
   const params = new URLSearchParams({ client_id: config.clientId!, redirect_uri: redirectUri, response_type: "code", response_mode: "query", scope: "offline_access User.Read Calendars.ReadWrite", state });
