@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ServiceSwitcher, useServiceNav } from "@/components/ServiceSwitcher";
 import { ServiceActions } from "@/components/ServiceActions";
+import { ServiceTypeTabs } from "@/components/ServiceTypeTabs";
 import { useStore } from "@/lib/store";
 import { pcsMode } from "@/lib/mode";
 
@@ -59,6 +60,7 @@ export default function ServiceWorkspaceLayout({
     <div className="mx-auto max-w-6xl">
       {/* Workspace chrome — hidden when printing the packet */}
       <div className="no-print mb-4 lg:mb-6">
+        <ServiceTypeTabs />
         <div className="flex flex-wrap items-center justify-between gap-2 lg:gap-3">
           <div className="min-w-0">
             <div className="label text-charcoal-300">{activeService.season}</div>

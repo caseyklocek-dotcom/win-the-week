@@ -7,7 +7,7 @@
 // alongside either), and "Lead a Service" is the capstone where they converge.
 // ============================================================
 
-import type { AppState, LeaderTrack, TrackArea, TrackStage } from "./types";
+import type { AppState, LeaderTrack, Profile, TrackArea, TrackStage } from "./types";
 
 function rid(p: string) {
   return p + "-" + Math.random().toString(36).slice(2, 9);
@@ -66,6 +66,37 @@ export function sentCount(track: LeaderTrack): number {
 // The capstone area being sent means they can run a whole service alone.
 export function isFullySent(track: LeaderTrack): boolean {
   return track.areas.find((a) => a.id === "service")?.stage === "sent";
+}
+
+// ---- Multiply pathway — the second track for a fully-sent leader ----
+// Once someone is sent to lead a service on their own, the next investment
+// is teaching them to disciple and multiply: train another leader, disciple
+// someone, keep growing themselves, and take it into their community. Same
+// Watch → Sent journey, reused so the leader already knows how it works.
+export const MULTIPLIER_AREA_DEFS: { id: string; label: string; blurb: string }[] = [
+  { id: "train", label: "Train a Leader", blurb: "Hand off what they were given — walk someone else through Watch, Help, Lead, Sent, the same way it happened for them." },
+  { id: "disciple", label: "Disciple Someone", blurb: "One-on-one investment beyond the stage: meeting with someone regularly to help them grow in Christ." },
+  { id: "grow", label: "Grow Themselves", blurb: "Their own ongoing pursuit — study, mentorship, or coaching that keeps them growing, not just giving out." },
+  { id: "outreach", label: "Community Outreach", blurb: "Carrying worship leadership beyond the church walls — serving or leading in their wider community." },
+];
+
+export function blankMultiplierAreas(): TrackArea[] {
+  return MULTIPLIER_AREA_DEFS.map((a) => ({ id: a.id, label: a.label, blurb: a.blurb, stage: "watch" as TrackStage }));
+}
+
+// The one gate: a leader isn't ready to start multiplying until they've been
+// fully sent to lead a service on their own.
+export function canStartMultiplier(track: LeaderTrack): boolean {
+  return isFullySent(track);
+}
+
+// Best-effort link from the signed-in profile to their own LeaderTrack entry.
+// There's no per-person login yet, so this matches by name — good enough to
+// preview the Account Admin experience until real multi-user accounts land.
+export function myLeaderTrack(state: AppState, profile: Profile): LeaderTrack | undefined {
+  const name = profile.name.trim().toLowerCase();
+  if (!name) return undefined;
+  return (state.leaders ?? []).find((l) => l.name.trim().toLowerCase() === name);
 }
 
 // Lazy seed: one example developing leader, mid-journey, so the space isn't

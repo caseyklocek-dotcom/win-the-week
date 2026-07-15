@@ -17,7 +17,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
-import { pcsMode, profileMode } from "@/lib/mode";
+import { pcsMode, profileMode, isAccountAdmin } from "@/lib/mode";
+import { myLeaderTrack } from "@/lib/leaders";
 import { Icon } from "./Icon";
 
 export const CMDK_EVENT = "wtw:cmdk";
@@ -46,7 +47,7 @@ function fmtServiceDate(iso: string) {
 }
 
 // Every-page routes. `keywords` catch the words a leader would actually type.
-const ROUTES: { href: string; label: string; icon: string; keywords: string; hint?: string; scheduling?: boolean }[] = [
+const ROUTES: { href: string; label: string; icon: string; keywords: string; hint?: string; scheduling?: boolean; invest?: boolean }[] = [
   { href: "/", label: "This Sunday", icon: "home", keywords: "home dashboard today overview" },
   { href: "/quick", label: "The 15-minute plan", icon: "sparkle", keywords: "quick plan fast fifteen 15 minute wizard flow" },
   { href: "/live", label: "Sunday Live", icon: "music", keywords: "live sunday morning running order stage stand go" },
@@ -61,10 +62,10 @@ const ROUTES: { href: string; label: string; icon: string; keywords: string; hin
   { href: "/songs", label: "Song library", icon: "music", keywords: "songs library catalog music charts" },
   { href: "/people", label: "People", icon: "users", keywords: "people team members contacts volunteers", scheduling: true },
   { href: "/reports", label: "Reports", icon: "target", keywords: "reports rotation serving load burnout pastor export csv insights analytics import" },
-  { href: "/invest", label: "Invest your week", icon: "target", keywords: "invest grow growth long game develop" },
-  { href: "/invest/compass", label: "Leader Compass", icon: "target", keywords: "compass assessment eight areas leadership invest" },
-  { href: "/invest/leaders", label: "Leaders On Deck", icon: "users", keywords: "leaders on deck bench develop raise track invest" },
-  { href: "/invest/goals", label: "Quarterly goals", icon: "target", keywords: "goals quarter targets invest" },
+  { href: "/invest", label: "Invest your week", icon: "target", keywords: "invest grow growth long game develop", invest: true },
+  { href: "/invest/compass", label: "Leader Compass", icon: "target", keywords: "compass assessment eight areas leadership invest", invest: true },
+  { href: "/invest/leaders", label: "Leaders On Deck", icon: "users", keywords: "leaders on deck bench develop raise track invest", invest: true },
+  { href: "/invest/goals", label: "Quarterly goals", icon: "target", keywords: "goals quarter targets invest", invest: true },
   { href: "/tools", label: "Tools", icon: "tool", keywords: "tools templates rehearsal team" },
   { href: "/community", label: "Community", icon: "community", keywords: "community posts leaders feed messages" },
   { href: "/profile", label: "Profile & settings", icon: "settings", keywords: "profile settings church account photo service time" },
@@ -84,6 +85,8 @@ export function CommandPalette() {
 
   const mode = profileMode(state.profile);
   const pcs = pcsMode(state.profile);
+  const investLocked =
+    isAccountAdmin(state.profile) && !myLeaderTrack(state, state.profile)?.investUnlocked;
 
   // ---- open/close wiring ----
   useEffect(() => {
@@ -141,6 +144,7 @@ export function CommandPalette() {
 
     for (const r of ROUTES) {
       if (r.scheduling && pcs) continue; // Planning Center owns those
+      if (r.invest && investLocked) continue; // not unlocked for this Account Admin yet
       out.push({
         id: `route:${r.href}`,
         group: "Go to",
@@ -218,7 +222,7 @@ export function CommandPalette() {
     }
 
     return out;
-  }, [state.services, state.activeServiceId, songLibrary, mode, pcs, go, setActiveService, setState, setTheme]);
+  }, [state.services, state.activeServiceId, songLibrary, mode, pcs, investLocked, go, setActiveService, setState, setTheme]);
 
   // ---- filter ----
   const shown = useMemo(() => {

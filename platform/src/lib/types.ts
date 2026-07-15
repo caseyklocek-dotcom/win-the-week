@@ -6,15 +6,29 @@ export type PrepStatus = "todo" | "doing" | "done";
 export type RoleStatus = "ok" | "wait" | "no"; // confirmed / awaiting / unassigned
 export type CapacityLevel = "low" | "medium" | "high";
 
+// ---- Service types (recurring services, e.g. "Sunday Early" 8am vs
+// "Sunday Contemporary" 10:30am at the same church) ----
+export interface ServiceType {
+  id: string;
+  name: string; // e.g. "Sunday Early"
+  day: string; // e.g. "Sunday"
+  time: string; // e.g. "8:00am"
+  timezone: string;
+}
+
 // ---- Profile / account ----
 export interface Profile {
   name: string;
   churchName: string;
   role: string;
   photo: string | null; // data URL
-  serviceDay: string; // e.g. "Sunday"
-  serviceTime: string; // e.g. "10:00am"
-  timezone: string;
+  serviceDay: string; // e.g. "Sunday" — mirrors serviceTypes[0]
+  serviceTime: string; // e.g. "10:00am" — mirrors serviceTypes[0]
+  timezone: string; // mirrors serviceTypes[0]
+  // Every recurring service this leader runs. Most leaders have exactly one;
+  // leaders with an early/late or Saturday-night service add more. Lazily
+  // migrated from serviceDay/serviceTime/timezone — see migrateServiceTypes.
+  serviceTypes?: ServiceType[];
   // dashboard customization — which cards show, in order
   dashboardCards: string[];
   // when on (default), creating a new service opens the step-by-step setup;
@@ -28,6 +42,11 @@ export interface Profile {
   // (Team/Send/Packet, People) steps aside — Win the Week keeps the heart,
   // prep, songs, runway, reports, and growth. See pcsMode in lib/mode.ts.
   planningCenterMode?: boolean;
+  // Account Holder (undefined/"holder") has unrestricted access. Account
+  // Admin has full access to planning, team, and admin tools, but no
+  // visibility into Invest (discipleship/goals) until the Holder unlocks it
+  // for their LeaderTrack entry — see isAccountAdmin in lib/mode.ts.
+  accountRole?: "holder" | "admin";
 }
 
 // ---- Chord chart (built-in, transposable) ----
@@ -270,6 +289,10 @@ export interface CommItem {
 export interface Service {
   id: string;
   date: string; // ISO date
+  // Which recurring service this occurrence belongs to (see ServiceType).
+  // Lazily migrated — see migrateServiceTypes. Two services can share a date
+  // when a church runs more than one service that day.
+  serviceTypeId?: string;
   season: string; // liturgical / occasion label, e.g. "Communion", "Ordinary Time"
   title: string; // series / message title
   scripture: string;
@@ -476,6 +499,13 @@ export interface LeaderTrack {
   startedDate: string; // ISO
   areas: TrackArea[];
   notes?: string;
+  // Granted by the Account Holder once this leader is fully sent (see
+  // isFullySent in lib/leaders.ts). Gates this leader's own Invest tab.
+  investUnlocked?: boolean;
+  // The second pathway — training a sent leader to disciple and multiply.
+  // Absent = not started. Same TrackArea/TrackStage shape as `areas`, just a
+  // different set of areas (see MULTIPLIER_AREA_DEFS in lib/leaders.ts).
+  multiplierAreas?: TrackArea[];
 }
 
 // ---- Guided coach session (the "walk me through it" work session) ----

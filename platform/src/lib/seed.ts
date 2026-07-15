@@ -8,6 +8,7 @@ import type {
   Song,
   SetSection,
   PrepStatus,
+  ServiceType,
 } from "./types";
 import { migrateLibrary } from "./library";
 import { migratePeople } from "./people";
@@ -402,10 +403,98 @@ export function migrateSchedule(state: AppState): AppState {
   };
 }
 
+// Lazy migration: give every account at least one ServiceType (derived from
+// the old single serviceDay/serviceTime/timezone fields the first time this
+// runs) and stamp every service with a serviceTypeId so multi-service leaders
+// can tell sibling services on the same date apart. Idempotent.
+export function migrateServiceTypes(state: AppState): AppState {
+  const hasTypes = (state.profile.serviceTypes?.length ?? 0) > 0;
+  const allStamped = state.services.every((s) => s.serviceTypeId);
+  if (hasTypes && allStamped) return state;
+
+  const primary: ServiceType = state.profile.serviceTypes?.[0] ?? {
+    id: id("styp"),
+    name: state.profile.serviceDay ? `${state.profile.serviceDay} Service` : "Sunday Service",
+    day: state.profile.serviceDay || "Sunday",
+    time: state.profile.serviceTime || "10:00am",
+    timezone: state.profile.timezone || "America/Chicago",
+  };
+  const serviceTypes = hasTypes ? state.profile.serviceTypes! : [primary];
+
+  return {
+    ...state,
+    profile: { ...state.profile, serviceTypes },
+    services: state.services.map((s) =>
+      s.serviceTypeId ? s : { ...s, serviceTypeId: serviceTypes[0].id },
+    ),
+  };
+}
+
+// Create a sibling service: another service on the SAME date, for a
+// different ServiceType (e.g. the 10:30am alongside the 8:00am). Team
+// positions carry over but every person/status resets to unassigned —
+// availability differs per service, so a leader must re-confirm who's
+// actually serving each one. `copyContent` controls whether the set list,
+// songs, and message details come along too, or the leader starts blank.
+export function makeSiblingService(
+  prev: Service,
+  date: string,
+  serviceTypeId: string,
+  copyContent: boolean,
+): Service {
+  const songIdMap = new Map<string, string>();
+  const songs = copyContent
+    ? prev.songs.map((s) => {
+        const nid = id("song");
+        songIdMap.set(s.id, nid);
+        return { ...s, id: nid };
+      })
+    : [];
+  const elements = copyContent
+    ? (prev.elements ?? []).map((e) => {
+        const nid = id("el");
+        songIdMap.set(e.id, nid);
+        return { ...e, id: nid };
+      })
+    : [];
+  return {
+    id: id("svc"),
+    date,
+    serviceTypeId,
+    season: prev.season,
+    title: copyContent ? prev.title : "",
+    scripture: copyContent ? prev.scripture : "",
+    theme: copyContent ? prev.theme : "",
+    oneThing: copyContent ? prev.oneThing : "",
+    status: { pray: "todo", plan: "todo", prep: "todo" },
+    milestones: freshMilestones(),
+    capacity: { level: "medium", note: "" },
+    blocks: blocksTemplate(1),
+    songs,
+    elements,
+    setSections: prev.setSections.map((s) => ({
+      id: id("setsec"),
+      label: s.label,
+      rows: copyContent ? s.rows.map((r) => ({ kind: r.kind, refId: songIdMap.get(r.refId) ?? r.refId })) : [],
+    })),
+    teams: prev.teams.map((t) => ({
+      ...t,
+      id: id("team"),
+      roles: t.roles.map((r) => ({ id: id("r"), position: r.position, person: "", status: "no" as const })),
+    })),
+    comms: [],
+    avlNotes: "",
+    rehearsalNotes: "",
+    watchFor: "",
+    carryForward: "",
+  };
+}
+
 export function makeServiceFromTemplate(prev: Service, date: string, season = "Ordinary Time"): Service {
   return {
     id: id("svc"),
     date,
+    serviceTypeId: prev.serviceTypeId,
     season,
     title: "",
     scripture: "",

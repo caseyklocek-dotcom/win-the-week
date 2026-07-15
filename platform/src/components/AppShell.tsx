@@ -15,7 +15,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
 import { useStore } from "@/lib/store";
-import { pcsMode, profileMode } from "@/lib/mode";
+import { pcsMode, profileMode, isAccountAdmin } from "@/lib/mode";
+import { myLeaderTrack } from "@/lib/leaders";
 import { ThemeToggle } from "./ThemeToggle";
 import { BottomNav } from "./BottomNav";
 import { Coach } from "./Coach";
@@ -43,6 +44,14 @@ const NAV: NavItem[] = [
   { href: "/people", label: "People", scheduling: true },
   { href: "/reports", label: "Reports" },
   { href: "/invest", label: "Invest", invest: true, match: ["/invest", "/tools", "/community"] },
+];
+
+// Standalone Tools/Community entries, used only when an Account Admin hasn't
+// unlocked Invest yet — otherwise they'd lose top-nav access to either, since
+// both normally live grouped under the Invest tab (see `match` above).
+const TOOLS_COMMUNITY_NAV: NavItem[] = [
+  { href: "/tools", label: "Tools" },
+  { href: "/community", label: "Community" },
 ];
 
 function LogoMark({ className = "" }: { className?: string }) {
@@ -83,6 +92,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Profile (a bare top-bar switch was cryptic). We only read it here.
   const mode = profileMode(state.profile);
 
+  // An Account Admin's Invest tab stays hidden until the Account Holder has
+  // unlocked it on their LeaderTrack entry (fully sent, then granted). Tools
+  // and Community aren't personal growth data, so they get their own entries
+  // instead of disappearing along with Invest.
+  const investLocked =
+    isAccountAdmin(state.profile) && !myLeaderTrack(state, state.profile)?.investUnlocked;
+  const nav = investLocked ? [...NAV.filter((i) => !i.invest), ...TOOLS_COMMUNITY_NAV] : NAV;
+
   const initials = state.profile.name
     .split(" ")
     .map((n) => n[0])
@@ -102,7 +119,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
 
           <nav className="hidden h-full items-center gap-1 lg:flex" aria-label="Primary">
-            {NAV.filter((item) => !(item.scheduling && pcsMode(state.profile))).map((item) => {
+            {nav.filter((item) => !(item.scheduling && pcsMode(state.profile))).map((item) => {
               const active = navItemActive(item, pathname);
               return (
                 <Link
@@ -159,9 +176,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className="flex h-9 w-9 shrink-0 items-center justify-center"
               aria-label="Profile"
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-charcoal-800 text-xs font-bold text-white dark:bg-coral-500">
-                {initials}
-              </span>
+              {state.profile.photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={state.profile.photo}
+                  alt=""
+                  className="h-8 w-8 rounded-full object-cover"
+                />
+              ) : (
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-charcoal-800 text-xs font-bold text-white dark:bg-coral-500">
+                  {initials}
+                </span>
+              )}
             </Link>
           </div>
         </div>

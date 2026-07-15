@@ -14,8 +14,12 @@ import {
   trackProgress,
   sentCount,
   isFullySent,
+  canStartMultiplier,
+  blankMultiplierAreas,
+  myLeaderTrack,
 } from "@/lib/leaders";
-import type { LeaderTrack, TrackStage } from "@/lib/types";
+import { isAccountAdmin } from "@/lib/mode";
+import type { LeaderTrack, TrackArea, TrackStage } from "@/lib/types";
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -62,33 +66,87 @@ export default function LeadersPage() {
   const removeLeader = (id: string) =>
     setState((s) => ({ ...s, leaders: (s.leaders ?? []).filter((l) => l.id !== id) }));
 
+  // `field` picks which pathway an edit applies to — the original five areas,
+  // or the second Multiply pathway that opens up once fully sent.
   const mapArea = (
     leaderId: string,
+    field: "areas" | "multiplierAreas",
     areaId: string,
-    fn: (a: LeaderTrack["areas"][number]) => LeaderTrack["areas"][number],
+    fn: (a: TrackArea) => TrackArea,
   ) =>
     setState((s) => ({
       ...s,
       leaders: (s.leaders ?? []).map((l) =>
         l.id === leaderId
-          ? { ...l, areas: l.areas.map((a) => (a.id === areaId ? fn(a) : a)) }
+          ? { ...l, [field]: (l[field] ?? []).map((a) => (a.id === areaId ? fn(a) : a)) }
           : l,
       ),
     }));
 
-  const setStage = (leaderId: string, areaId: string, stage: TrackStage) =>
-    mapArea(leaderId, areaId, (a) => ({
+  const setStage = (leaderId: string, field: "areas" | "multiplierAreas", areaId: string, stage: TrackStage) =>
+    mapArea(leaderId, field, areaId, (a) => ({
       ...a,
       stage,
       sentDate: stage === "sent" ? a.sentDate ?? new Date().toISOString() : undefined,
     }));
 
-  const setAreaNote = (leaderId: string, areaId: string, note: string) =>
-    mapArea(leaderId, areaId, (a) => ({ ...a, note }));
+  const setAreaNote = (leaderId: string, field: "areas" | "multiplierAreas", areaId: string, note: string) =>
+    mapArea(leaderId, field, areaId, (a) => ({ ...a, note }));
+
+  const startMultiplier = (leaderId: string) =>
+    setState((s) => ({
+      ...s,
+      leaders: (s.leaders ?? []).map((l) =>
+        l.id === leaderId ? { ...l, multiplierAreas: blankMultiplierAreas(), investUnlocked: true } : l,
+      ),
+    }));
+
+  const admin = isAccountAdmin(state.profile);
+  const myTrack = admin ? myLeaderTrack(state, state.profile) : undefined;
 
   const selected = leaders.find((l) => l.id === selectedId) ?? null;
   // One leader: drop straight into their track. Many: show the card overview.
-  const detail = selected ?? (leaders.length === 1 ? leaders[0] : null);
+  const detail = admin ? myTrack ?? null : (selected ?? (leaders.length === 1 ? leaders[0] : null));
+
+  if (admin) {
+    return (
+      <div className="mx-auto max-w-4xl space-y-6">
+        <div>
+          <h1 className="headline text-charcoal-900">YOUR LEADER TRACK</h1>
+          <p className="mt-1 text-sm text-charcoal-400">
+            Your own journey — where you stand, and what your Account Holder has opened up next.
+          </p>
+        </div>
+        {detail ? (
+          <LeaderDetail
+            key={detail.id}
+            track={detail}
+            readOnly
+            showAllLink={false}
+            onBackToAll={() => {}}
+            onAdd={() => {}}
+            onRename={() => {}}
+            onRemove={() => {}}
+            onSetStage={() => {}}
+            onSetNote={() => {}}
+          />
+        ) : (
+          <Card>
+            <p className="text-sm text-charcoal-500">No leader track found yet.</p>
+          </Card>
+        )}
+        {detail && canStartMultiplier(detail) && (
+          <MultiplySection
+            track={detail}
+            readOnly
+            onStart={() => {}}
+            onSetStage={(areaId, stage) => setStage(detail.id, "multiplierAreas", areaId, stage)}
+            onSetNote={(areaId, note) => setAreaNote(detail.id, "multiplierAreas", areaId, note)}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -123,20 +181,30 @@ export default function LeadersPage() {
           </div>
         </Card>
       ) : detail ? (
-        <LeaderDetail
-          key={detail.id}
-          track={detail}
-          showAllLink={leaders.length > 1}
-          onBackToAll={() => setSelectedId(null)}
-          onAdd={addLeader}
-          onRename={(name) => updateLeader(detail.id, { name })}
-          onRemove={() => {
-            removeLeader(detail.id);
-            setSelectedId(null);
-          }}
-          onSetStage={(areaId, stage) => setStage(detail.id, areaId, stage)}
-          onSetNote={(areaId, note) => setAreaNote(detail.id, areaId, note)}
-        />
+        <>
+          <LeaderDetail
+            key={detail.id}
+            track={detail}
+            showAllLink={leaders.length > 1}
+            onBackToAll={() => setSelectedId(null)}
+            onAdd={addLeader}
+            onRename={(name) => updateLeader(detail.id, { name })}
+            onRemove={() => {
+              removeLeader(detail.id);
+              setSelectedId(null);
+            }}
+            onSetStage={(areaId, stage) => setStage(detail.id, "areas", areaId, stage)}
+            onSetNote={(areaId, note) => setAreaNote(detail.id, "areas", areaId, note)}
+          />
+          {canStartMultiplier(detail) && (
+            <MultiplySection
+              track={detail}
+              onStart={() => startMultiplier(detail.id)}
+              onSetStage={(areaId, stage) => setStage(detail.id, "multiplierAreas", areaId, stage)}
+              onSetNote={(areaId, note) => setAreaNote(detail.id, "multiplierAreas", areaId, note)}
+            />
+          )}
+        </>
       ) : (
         <>
           <div className="flex items-center justify-between">
@@ -207,6 +275,7 @@ function LeaderDetail({
   onRemove,
   onSetStage,
   onSetNote,
+  readOnly = false,
 }: {
   track: LeaderTrack;
   showAllLink: boolean;
@@ -216,6 +285,7 @@ function LeaderDetail({
   onRemove: () => void;
   onSetStage: (areaId: string, stage: TrackStage) => void;
   onSetNote: (areaId: string, note: string) => void;
+  readOnly?: boolean;
 }) {
   const pct = Math.round(trackProgress(track) * 100);
   const sent = sentCount(track);
@@ -223,46 +293,50 @@ function LeaderDetail({
   return (
     <div className="space-y-5">
       {/* nav row */}
-      <div className="flex items-center justify-between">
-        {showAllLink ? (
+      {!readOnly && (
+        <div className="flex items-center justify-between">
+          {showAllLink ? (
+            <button
+              onClick={onBackToAll}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-charcoal-500 transition hover:text-teal-600"
+            >
+              <Icon name="arrowRight" size={13} className="rotate-180" /> All leaders
+            </button>
+          ) : (
+            <Link href="/invest" className="text-xs font-semibold text-charcoal-400 hover:underline">
+              ← Back to Growth
+            </Link>
+          )}
           <button
-            onClick={onBackToAll}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-charcoal-500 transition hover:text-teal-600"
+            onClick={onAdd}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-teal-600 hover:underline"
           >
-            <Icon name="arrowRight" size={13} className="rotate-180" /> All leaders
+            <Icon name="userPlus" size={13} /> Add a leader
           </button>
-        ) : (
-          <Link href="/invest" className="text-xs font-semibold text-charcoal-400 hover:underline">
-            ← Back to Growth
-          </Link>
-        )}
-        <button
-          onClick={onAdd}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-teal-600 hover:underline"
-        >
-          <Icon name="userPlus" size={13} /> Add a leader
-        </button>
-      </div>
+        </div>
+      )}
 
       {/* header */}
       <div className="border-t border-charcoal-100 pt-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <Label>Their leader track</Label>
+            <Label>{readOnly ? "Your leader track" : "Their leader track"}</Label>
             <div className="mt-1 text-xl font-bold text-charcoal-900">
-              <EditableText value={track.name} onCommit={onRename} />
+              {readOnly ? track.name : <EditableText value={track.name} onCommit={onRename} />}
             </div>
             <p className="mt-1 text-xs text-charcoal-400">
               Started {fmtDate(track.startedDate)} · {sent} of {track.areas.length} sent
             </p>
           </div>
-          <button
-            onClick={onRemove}
-            className="shrink-0 text-charcoal-300 transition hover:text-error"
-            title="Remove this leader"
-          >
-            <Icon name="trash" size={16} />
-          </button>
+          {!readOnly && (
+            <button
+              onClick={onRemove}
+              className="shrink-0 text-charcoal-300 transition hover:text-error"
+              title="Remove this leader"
+            >
+              <Icon name="trash" size={16} />
+            </button>
+          )}
         </div>
         <div className="mt-4 h-2 overflow-hidden rounded-full bg-cream-200">
           <div className="h-full rounded-full bg-teal-500 transition-all" style={{ width: `${pct}%` }} />
@@ -313,7 +387,7 @@ function LeaderDetail({
               )
             }
           >
-            <AreaBody track={track} areaId={a.id} onSetStage={onSetStage} onSetNote={onSetNote} />
+            <AreaBody area={a} onSetStage={onSetStage} onSetNote={onSetNote} readOnly={readOnly} />
           </Collapsible>
         );
       })}
@@ -322,17 +396,16 @@ function LeaderDetail({
 }
 
 function AreaBody({
-  track,
-  areaId,
+  area: a,
   onSetStage,
   onSetNote,
+  readOnly = false,
 }: {
-  track: LeaderTrack;
-  areaId: string;
+  area: TrackArea;
   onSetStage: (areaId: string, stage: TrackStage) => void;
   onSetNote: (areaId: string, note: string) => void;
+  readOnly?: boolean;
 }) {
-  const a = track.areas.find((x) => x.id === areaId)!;
   const current = stageIndex(a.stage);
   const isSent = a.stage === "sent";
 
@@ -349,7 +422,8 @@ function AreaBody({
           return (
             <button
               key={stg.key}
-              onClick={() => onSetStage(a.id, stg.key)}
+              onClick={() => !readOnly && onSetStage(a.id, stg.key)}
+              disabled={readOnly}
               title={stg.mentor}
               className={`flex flex-1 flex-col items-center gap-1 rounded-lg border px-1.5 py-2 text-center transition ${
                 active
@@ -359,7 +433,7 @@ function AreaBody({
                   : reached
                     ? "border-teal-300 bg-teal-100 text-teal-700"
                     : "border-charcoal-200 bg-white text-charcoal-400 hover:border-teal-400 hover:text-teal-600"
-              }`}
+              } ${readOnly ? "cursor-default" : ""}`}
             >
               <Icon name={last ? "send" : reached ? "check" : "arrowRight"} size={14} />
               <span className="text-[0.7rem] font-semibold leading-tight">{stg.label}</span>
@@ -377,13 +451,95 @@ function AreaBody({
       <div className="mt-3 rounded-lg border border-charcoal-100 bg-cream-100 px-3 py-2">
         <div className="label text-charcoal-400">Note</div>
         <div className="mt-0.5 text-sm text-charcoal-700">
-          <EditableText
-            value={a.note ?? ""}
-            onCommit={(v) => onSetNote(a.id, v)}
-            className="text-sm"
-          />
+          {readOnly ? (
+            <p>{a.note || "—"}</p>
+          ) : (
+            <EditableText
+              value={a.note ?? ""}
+              onCommit={(v) => onSetNote(a.id, v)}
+              className="text-sm"
+            />
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ---- Multiply: the second pathway, opened once a leader is fully sent ----
+function MultiplySection({
+  track,
+  onStart,
+  onSetStage,
+  onSetNote,
+  readOnly = false,
+}: {
+  track: LeaderTrack;
+  onStart: () => void;
+  onSetStage: (areaId: string, stage: TrackStage) => void;
+  onSetNote: (areaId: string, note: string) => void;
+  readOnly?: boolean;
+}) {
+  const areas = track.multiplierAreas;
+
+  if (!areas) {
+    if (readOnly) return null; // nothing to show an admin until the Holder starts it
+    return (
+      <Card className="border-teal-300 bg-gradient-to-br from-white to-teal-100/40">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="max-w-xl">
+            <Label>Multiply</Label>
+            <h2 className="mt-1 text-xl font-bold text-charcoal-900">
+              {track.name} is sent. Start the next pathway.
+            </h2>
+            <p className="mt-2 text-sm text-charcoal-600">
+              Now teach them to disciple and multiply: train another leader, disciple someone
+              one-on-one, keep growing themselves, and carry it into their community.
+            </p>
+          </div>
+          <button
+            onClick={onStart}
+            className="inline-flex items-center gap-2 rounded-lg bg-teal-500 px-4 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-teal-600"
+          >
+            <Icon name="trendingUp" size={16} /> Start Multiplier Pathway
+          </button>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="border-t border-charcoal-100 pt-5">
+        <Label>Multiply</Label>
+        <p className="mt-1 text-xs text-charcoal-400">
+          Beyond leading a service — teaching {readOnly ? "you" : track.name} to disciple and
+          multiply into the next generation of leaders.
+        </p>
+      </div>
+      {areas.map((a) => {
+        const isSent = a.stage === "sent";
+        return (
+          <Collapsible
+            key={a.id}
+            defaultOpen={false}
+            header={<h3 className="text-base font-bold text-charcoal-900">{a.label}</h3>}
+            right={
+              isSent ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-coral-100 px-2.5 py-1 text-xs font-bold text-coral-600">
+                  <Icon name="check" size={12} /> Sent
+                </span>
+              ) : (
+                <span className="rounded-full bg-teal-100 px-2.5 py-1 text-xs font-bold text-teal-600">
+                  {STAGES[stageIndex(a.stage)].label}
+                </span>
+              )
+            }
+          >
+            <AreaBody area={a} onSetStage={onSetStage} onSetNote={onSetNote} readOnly={readOnly} />
+          </Collapsible>
+        );
+      })}
     </div>
   );
 }

@@ -6,7 +6,8 @@ import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
 import { ServicesIcon } from "./ServicesIcon";
 import { useStore } from "@/lib/store";
-import { pcsMode } from "@/lib/mode";
+import { pcsMode, isAccountAdmin } from "@/lib/mode";
+import { myLeaderTrack } from "@/lib/leaders";
 
 // Phone tab bar. Five primary tabs cover the weekly core; everything else lives
 // behind "More" so the bar stays clean. Home and Growth are both reachable now.
@@ -53,7 +54,11 @@ export function BottomNav() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const { state } = useStore();
-  const more = pcsMode(state.profile) ? MORE.filter((it) => !it.scheduling) : MORE;
+  const investLocked =
+    isAccountAdmin(state.profile) && !myLeaderTrack(state, state.profile)?.investUnlocked;
+  const more = MORE.filter(
+    (it) => !(it.scheduling && pcsMode(state.profile)) && !(it.href === "/invest" && investLocked),
+  );
 
   const onMore = more.some((it) => isActive(it, pathname));
 

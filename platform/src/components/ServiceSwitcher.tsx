@@ -23,7 +23,15 @@ function todayISO(): string {
 // date order; "This Sunday" jumps back to the nearest upcoming service.
 export function useServiceNav() {
   const { state, activeService, setActiveService } = useStore();
-  const sorted = [...state.services].sort((a, b) => a.date.localeCompare(b.date));
+  // When a leader runs more than one service, siblings share a date — prev/next
+  // should walk this service's own recurring slot (e.g. every 10:30am), not
+  // hop sideways to the 8am service on the same Sunday.
+  const sameType = state.services.filter(
+    (s) => s.serviceTypeId === activeService.serviceTypeId,
+  );
+  const sorted = [...(sameType.length > 0 ? sameType : state.services)].sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
   const idx = sorted.findIndex((s) => s.id === activeService.id);
   const prev = idx > 0 ? sorted[idx - 1] : null;
   const next = idx >= 0 && idx < sorted.length - 1 ? sorted[idx + 1] : null;

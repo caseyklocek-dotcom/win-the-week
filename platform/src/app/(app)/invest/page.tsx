@@ -5,7 +5,8 @@ import { useStore } from "@/lib/store";
 import { Icon } from "@/components/Icon";
 import { CompassRadar } from "@/components/CompassRadar";
 import { COMPASS_DIMENSIONS, band, BAND_META } from "@/lib/compass";
-import { sentCount } from "@/lib/leaders";
+import { sentCount, trackProgress, myLeaderTrack } from "@/lib/leaders";
+import { isAccountAdmin } from "@/lib/mode";
 
 const TEAL = "#2a8d9c";
 
@@ -45,6 +46,8 @@ export default function GrowthPage() {
   const { state } = useStore();
   const latest = state.compass?.history.at(-1);
   const leaders = state.leaders ?? [];
+  const admin = isAccountAdmin(state.profile);
+  const myTrack = admin ? myLeaderTrack(state, state.profile) : undefined;
 
   const axes = latest
     ? COMPASS_DIMENSIONS.map((d) => ({ label: d.label, value: latest.scores[d.id] ?? 0 }))
@@ -167,28 +170,53 @@ export default function GrowthPage() {
           )}
         </ToolTile>
 
-        <ToolTile
-          href="/invest/leaders"
-          icon="users"
-          title="Leaders On Deck"
-          desc="Raise someone from watching to being sent."
-        >
-          {leaders.length > 0 ? (
-            <div className="w-full">
-              <div className="h-2 overflow-hidden rounded-full bg-cream-200">
-                <div
-                  className="h-full rounded-full bg-teal-500"
-                  style={{ width: `${totalAreas ? Math.round((totalSent / totalAreas) * 100) : 0}%` }}
-                />
+        {admin ? (
+          <ToolTile
+            href="/invest/leaders"
+            icon="users"
+            title="Your Leader Track"
+            desc="Where you stand, and what's opened up next."
+          >
+            {myTrack ? (
+              <div className="w-full">
+                <div className="h-2 overflow-hidden rounded-full bg-cream-200">
+                  <div
+                    className="h-full rounded-full bg-teal-500"
+                    style={{ width: `${Math.round(trackProgress(myTrack) * 100)}%` }}
+                  />
+                </div>
+                <div className="mt-1.5 text-xs text-charcoal-400">
+                  {sentCount(myTrack)} of {myTrack.areas.length} sent
+                </div>
               </div>
-              <div className="mt-1.5 text-xs text-charcoal-400">
-                {leaders.length} in progress · {totalSent} sent
+            ) : (
+              <span className="text-xs font-semibold text-teal-600">Open →</span>
+            )}
+          </ToolTile>
+        ) : (
+          <ToolTile
+            href="/invest/leaders"
+            icon="users"
+            title="Leaders On Deck"
+            desc="Raise someone from watching to being sent."
+          >
+            {leaders.length > 0 ? (
+              <div className="w-full">
+                <div className="h-2 overflow-hidden rounded-full bg-cream-200">
+                  <div
+                    className="h-full rounded-full bg-teal-500"
+                    style={{ width: `${totalAreas ? Math.round((totalSent / totalAreas) * 100) : 0}%` }}
+                  />
+                </div>
+                <div className="mt-1.5 text-xs text-charcoal-400">
+                  {leaders.length} in progress · {totalSent} sent
+                </div>
               </div>
-            </div>
-          ) : (
-            <span className="text-xs font-semibold text-teal-600">Start a track →</span>
-          )}
-        </ToolTile>
+            ) : (
+              <span className="text-xs font-semibold text-teal-600">Start a track →</span>
+            )}
+          </ToolTile>
+        )}
 
         <ToolTile
           href="/invest/goals"

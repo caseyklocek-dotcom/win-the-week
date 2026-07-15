@@ -16,7 +16,7 @@ import type {
 } from "./types";
 import { autoSchedule } from "./teamTemplate";
 import { SELF_ID, newThreadId, newMessageId } from "./community";
-import { makeSeed, makeFreshSeed, migrateSchedule, SEED_VERSION } from "./seed";
+import { makeSeed, makeFreshSeed, migrateSchedule, migrateServiceTypes, SEED_VERSION } from "./seed";
 import { migrateLibrary } from "./library";
 import { migratePeople } from "./people";
 import { migrateSet } from "./set";
@@ -33,13 +33,15 @@ const STORAGE_KEY = "wtw_state_v1";
 
 // Apply every lazy migration to a stored/loaded AppState.
 function hydrate(s: AppState): AppState {
-  return ensureCanonicalTeams(
-    migratePositions(
-      migratePlan(
-        migrateSchedule(
-          migrateLeaders(
-            migrateTeamTemplates(
-              migrateCommunity(migrateRehearsal(migrateSet(migratePeople(migrateLibrary(s))))),
+  return migrateServiceTypes(
+    ensureCanonicalTeams(
+      migratePositions(
+        migratePlan(
+          migrateSchedule(
+            migrateLeaders(
+              migrateTeamTemplates(
+                migrateCommunity(migrateRehearsal(migrateSet(migratePeople(migrateLibrary(s))))),
+              ),
             ),
           ),
         ),
@@ -48,16 +50,20 @@ function hydrate(s: AppState): AppState {
   );
 }
 function freshSeedState(): AppState {
-  return ensureCanonicalTeams(
-    migratePositions(
-      migratePlan(migrateLeaders(migrateCommunity(migrateRehearsal(makeFreshSeed())))),
+  return migrateServiceTypes(
+    ensureCanonicalTeams(
+      migratePositions(
+        migratePlan(migrateLeaders(migrateCommunity(migrateRehearsal(makeFreshSeed())))),
+      ),
     ),
   );
 }
 function demoSeedState(): AppState {
-  return ensureCanonicalTeams(
-    migratePositions(
-      migratePlan(migrateLeaders(migrateCommunity(migrateRehearsal(makeSeed())))),
+  return migrateServiceTypes(
+    ensureCanonicalTeams(
+      migratePositions(
+        migratePlan(migrateLeaders(migrateCommunity(migrateRehearsal(makeSeed())))),
+      ),
     ),
   );
 }

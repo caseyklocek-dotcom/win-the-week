@@ -6,6 +6,8 @@
 
 import { useStore } from "@/lib/store";
 import { hasAdvanced } from "@/lib/plan";
+import { isAccountAdmin } from "@/lib/mode";
+import { myLeaderTrack } from "@/lib/leaders";
 import { Icon } from "@/components/Icon";
 
 const ADVANCED_PITCH = [
@@ -16,6 +18,27 @@ const ADVANCED_PITCH = [
 
 export default function GrowthLayout({ children }: { children: React.ReactNode }) {
   const { state, setState } = useStore();
+
+  const investLocked =
+    isAccountAdmin(state.profile) && !myLeaderTrack(state, state.profile)?.investUnlocked;
+
+  if (investLocked) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <div className="rounded-2xl border border-teal-200 bg-white p-8 text-center shadow-[var(--shadow-md)]">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-teal-100 text-teal-600">
+            <Icon name="compass" size={24} />
+          </div>
+          <div className="label mt-5 text-teal-600">Not yet unlocked</div>
+          <h1 className="headline mt-2 text-2xl text-charcoal-900">Not yet — one step at a time</h1>
+          <p className="mx-auto mt-3 max-w-md text-sm text-charcoal-600">
+            Invest opens up once you&rsquo;re fully sent to lead a service on your own. Your
+            Account Holder unlocks it from there — ask them where you stand.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (hasAdvanced(state.plan)) return <>{children}</>;
 

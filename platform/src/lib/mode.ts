@@ -24,3 +24,9 @@ export function profileMode(p: Profile): ExperienceMode {
 export function pcsMode(p: Profile): boolean {
   return p.planningCenterMode === true;
 }
+
+// Account Admin: full access to planning, team, and admin tools, but Invest
+// (discipleship/goals) stays hidden until the Account Holder unlocks it.
+export function isAccountAdmin(p: Profile): boolean {
+  return p.accountRole === "admin";
+}
