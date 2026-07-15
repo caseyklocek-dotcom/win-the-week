@@ -1,14 +1,14 @@
 "use client";
 
-// Public front door: what Win the Week is, the plans, and the two ways in —
-// a self-serve free trial or a founding-beta application. Signed-out visitors
-// land here (RequireAuth redirects to /welcome, not /login).
+// Public front door: what Win the Week is, and one way in — book a call with
+// Casey to join the founding beta. Signed-out visitors land here (RequireAuth
+// redirects to /welcome, not /login).
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Icon } from "@/components/Icon";
-import { SIGNUP_PLAN_KEY, TRIAL_DAYS } from "@/lib/plan";
-import type { PlanTier } from "@/lib/types";
+
+// Casey's Calendly booking page for beta calls.
+const BETA_CALL_URL = "https://calendly.com/caseyklocek/let-s-connect-clone";
 
 function Logo({ className = "h-9 w-9" }: { className?: string }) {
   return (
@@ -62,32 +62,7 @@ const FEATURES = [
   },
 ];
 
-const BASE_FEATURES = [
-  "The full Pray, Plan, Prep planning flow",
-  "Set builder with charts in any key",
-  "8-week runway and team scheduling",
-  "The Win the Week community",
-];
-
-const ADVANCED_FEATURES = [
-  "Everything in Base",
-  "Leader Compass self-assessment",
-  "Quarterly goals tied to your Compass",
-  "Leaders on Deck bench building",
-];
-
 export default function WelcomePage() {
-  const router = useRouter();
-
-  const startTrial = (tier: PlanTier) => {
-    try {
-      localStorage.setItem(SIGNUP_PLAN_KEY, tier);
-    } catch {
-      /* private mode; account simply starts on the default plan */
-    }
-    router.push("/login");
-  };
-
   return (
     <div className="min-h-screen bg-cream-100 text-charcoal-800">
       {/* Nav */}
@@ -105,12 +80,14 @@ export default function WelcomePage() {
           >
             Sign In
           </Link>
-          <Link
-            href="/beta"
+          <a
+            href={BETA_CALL_URL}
+            target="_blank"
+            rel="noreferrer"
             className="rounded-lg bg-coral-500 px-4 py-2 text-sm font-semibold text-white shadow-[var(--shadow-coral)] transition hover:bg-coral-600"
           >
             Apply for the Beta
-          </Link>
+          </a>
         </nav>
       </header>
 
@@ -126,22 +103,15 @@ export default function WelcomePage() {
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <a
-            href="#plans"
+            href={BETA_CALL_URL}
+            target="_blank"
+            rel="noreferrer"
             className="inline-flex items-center gap-1.5 rounded-lg bg-coral-500 px-6 py-3 text-sm font-semibold text-white shadow-[var(--shadow-coral)] transition hover:bg-coral-600"
           >
-            Start Free Trial
+            Apply for the Beta
             <Icon name="arrowRight" size={15} />
           </a>
-          <Link
-            href="/beta"
-            className="inline-flex items-center rounded-lg border border-charcoal-200 bg-white px-6 py-3 text-sm font-semibold text-charcoal-700 transition hover:border-coral-400 hover:text-coral-600"
-          >
-            Apply for the Beta
-          </Link>
         </div>
-        <p className="mt-3 text-xs text-charcoal-400">
-          {TRIAL_DAYS}-day free trial. No card needed.
-        </p>
       </section>
 
       {/* Pray / Plan / Prep */}
@@ -223,86 +193,25 @@ export default function WelcomePage() {
         <p className="label mt-4 text-charcoal-400">Elijah · Worship Leader</p>
       </section>
 
-      {/* Pricing */}
-      <section id="plans" className="border-t border-charcoal-100 bg-white">
+      {/* Founding beta */}
+      <section className="border-t border-charcoal-100 bg-white">
         <div className="mx-auto max-w-5xl px-5 py-16">
-          <div className="text-center">
-            <div className="label text-coral-600">Plans</div>
-            <h2 className="headline mt-2 text-3xl text-charcoal-900">Pick your pace</h2>
-            <p className="mx-auto mt-3 max-w-xl text-charcoal-600">
-              Every plan starts with a {TRIAL_DAYS}-day free trial, and billing begins when the
-              beta wraps up. Early accounts keep a founder rate.
-            </p>
-          </div>
-
-          <div className="mx-auto mt-10 grid max-w-3xl gap-5 sm:grid-cols-2">
-            {/* Base */}
-            <div className="flex flex-col rounded-2xl border border-charcoal-100 bg-cream-50 p-7">
-              <div className="label text-charcoal-400">Base</div>
-              <div className="mt-3 flex items-baseline gap-1">
-                <span className="text-4xl font-black text-charcoal-900">$15</span>
-                <span className="text-sm font-semibold text-charcoal-400">/mo</span>
-              </div>
-              <p className="mt-2 text-sm text-charcoal-600">Win back your week.</p>
-              <ul className="mt-5 flex-1 space-y-2.5">
-                {BASE_FEATURES.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-charcoal-700">
-                    <Icon name="check" size={16} className="mt-0.5 shrink-0 text-coral-500" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <button
-                onClick={() => startTrial("base")}
-                className="mt-7 w-full rounded-lg border border-charcoal-200 bg-white px-4 py-2.5 text-sm font-semibold text-charcoal-800 transition hover:border-coral-400 hover:text-coral-600"
-              >
-                Start Free Trial
-              </button>
-            </div>
-
-            {/* Advanced */}
-            <div className="relative flex flex-col rounded-2xl border-2 border-coral-500 bg-white p-7 shadow-[var(--shadow-lg)]">
-              <span className="absolute -top-3 left-6 rounded-full bg-coral-500 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white">
-                Grow further
-              </span>
-              <div className="label text-coral-600">Advanced</div>
-              <div className="mt-3 flex items-baseline gap-1">
-                <span className="text-4xl font-black text-charcoal-900">$30</span>
-                <span className="text-sm font-semibold text-charcoal-400">/mo</span>
-              </div>
-              <p className="mt-2 text-sm text-charcoal-600">Invest the week you won back.</p>
-              <ul className="mt-5 flex-1 space-y-2.5">
-                {ADVANCED_FEATURES.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-charcoal-700">
-                    <Icon name="check" size={16} className="mt-0.5 shrink-0 text-coral-500" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <button
-                onClick={() => startTrial("advanced")}
-                className="mt-7 w-full rounded-lg bg-coral-500 px-4 py-2.5 text-sm font-semibold text-white shadow-[var(--shadow-coral)] transition hover:bg-coral-600"
-              >
-                Start Free Trial
-              </button>
-            </div>
-          </div>
-
-          {/* Founding beta */}
-          <div className="mx-auto mt-8 max-w-3xl rounded-2xl border border-charcoal-100 bg-charcoal-800 p-7 text-center dark:bg-cream-200">
+          <div className="mx-auto max-w-3xl rounded-2xl border border-charcoal-100 bg-charcoal-800 p-7 text-center dark:bg-cream-200">
             <div className="label text-coral-400">The founding beta</div>
             <p className="mx-auto mt-3 max-w-xl text-sm text-white dark:text-charcoal-800">
               A small group of worship leaders is shaping Win the Week before it opens wide.
               Founding members get every Advanced feature free during the beta, a direct line to
               Casey, and a founder rate locked in when billing begins.
             </p>
-            <Link
-              href="/beta"
+            <a
+              href={BETA_CALL_URL}
+              target="_blank"
+              rel="noreferrer"
               className="mt-5 inline-flex items-center gap-1.5 rounded-lg bg-coral-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-coral-600"
             >
               Apply for the Beta
               <Icon name="arrowRight" size={15} />
-            </Link>
+            </a>
           </div>
         </div>
       </section>
