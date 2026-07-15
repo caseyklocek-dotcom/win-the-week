@@ -52,6 +52,37 @@ export async function exchangeCode(provider: LiveCalendarProvider, code: string,
   return { accessToken: token.access_token, refreshToken: token.refresh_token, expiresAt: Date.now() + Number(token.expires_in || 3600) * 1000 };
 }
 
+export async function refreshCalendarSession(
+  provider: LiveCalendarProvider,
+  session: CalendarSession,
+): Promise<CalendarSession> {
+  if (!session.refreshToken) throw new Error("Calendar connection needs to be renewed");
+  const config = providerEnv(provider);
+  const endpoint = provider === "google"
+    ? "https://oauth2.googleapis.com/token"
+    : "https://login.microsoftonline.com/common/oauth2/v2.0/token";
+  const body = new URLSearchParams({
+    client_id: config.clientId!,
+    client_secret: config.clientSecret!,
+    refresh_token: session.refreshToken,
+    grant_type: "refresh_token",
+  });
+  if (provider === "microsoft") body.set("scope", "offline_access User.Read Calendars.ReadWrite");
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body,
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Calendar refresh failed (${response.status})`);
+  const token = await response.json();
+  return {
+    accessToken: token.access_token,
+    refreshToken: token.refresh_token || session.refreshToken,
+    expiresAt: Date.now() + Number(token.expires_in || 3600) * 1000,
+  };
+}
+
 export function authorizationUrl(provider: LiveCalendarProvider, redirectUri: string, state: string) {
   const config = providerEnv(provider);
   if (provider === "google") {

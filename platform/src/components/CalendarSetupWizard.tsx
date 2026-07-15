@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import type { CalendarProvider } from "@/lib/types";
 
@@ -21,6 +21,30 @@ export function CalendarSetupWizard({
   const [step, setStep] = useState(0);
   const [provider, setProvider] = useState<CalendarProvider>("google");
   const [detailMode, setDetailMode] = useState<"titles" | "busy">("titles");
+  const [availability, setAvailability] = useState<Record<"google" | "microsoft", boolean>>({
+    google: false,
+    microsoft: false,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/calendar/status")
+      .then((response) => response.json())
+      .then((status) => {
+        if (cancelled) return;
+        setAvailability({
+          google: Boolean(status.google?.configured),
+          microsoft: Boolean(status.microsoft?.configured),
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const liveProvider = provider === "google" || provider === "microsoft";
+  const canConnect = liveProvider && availability[provider];
 
   return (
     <div className="mt-6 overflow-hidden rounded-2xl border border-charcoal-100 bg-cream-50">
@@ -46,12 +70,29 @@ export function CalendarSetupWizard({
               ))}
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
-              <a href={`/api/calendar/${provider}/start`} className="inline-flex items-center gap-2 rounded-full bg-coral-500 px-5 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition hover:bg-coral-600">
-                <Icon name="link" size={15} /> Connect {provider === "microsoft" ? "Outlook" : provider === "apple" ? "Apple" : "Google"}
-              </a>
-              <button onClick={() => setStep(1)} className="rounded-full border border-charcoal-200 px-4 py-2.5 text-sm font-semibold text-charcoal-600">Set Up a Preview</button>
+              {provider === "apple" ? (
+                <button onClick={() => setStep(1)} className="inline-flex items-center gap-2 rounded-full bg-coral-500 px-5 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition hover:bg-coral-600">
+                  <Icon name="upload" size={15} /> Continue to Import
+                </button>
+              ) : canConnect ? (
+                <a href={`/api/calendar/${provider}/start`} className="inline-flex items-center gap-2 rounded-full bg-coral-500 px-5 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-coral)] transition hover:bg-coral-600">
+                  <Icon name="link" size={15} /> Connect {provider === "microsoft" ? "Outlook" : "Google"}
+                </a>
+              ) : (
+                <button disabled className="inline-flex cursor-not-allowed items-center gap-2 rounded-full bg-charcoal-200 px-5 py-2.5 text-sm font-bold text-charcoal-500">
+                  <Icon name="link" size={15} />
+                  Connect {provider === "microsoft" ? "Outlook" : "Google"}
+                </button>
+              )}
+              {provider !== "apple" && <button onClick={() => setStep(1)} className="rounded-full border border-charcoal-200 px-4 py-2.5 text-sm font-semibold text-charcoal-600">Set Up a Preview</button>}
             </div>
-            <p className="mt-3 text-xs text-charcoal-400">Live sign-in becomes available when this installation’s calendar credentials are configured.</p>
+            <p className="mt-3 text-xs text-charcoal-400">
+              {canConnect
+                ? `${provider === "microsoft" ? "Microsoft" : "Google"} sign-in is ready.`
+                : provider === "apple"
+                  ? "Continue to import an Apple Calendar file safely."
+                  : `${provider === "microsoft" ? "Microsoft" : "Google"} connection is waiting for administrator setup.`}
+            </p>
           </>
         )}
 

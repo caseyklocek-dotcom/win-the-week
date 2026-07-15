@@ -1,12 +1,30 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { openCalendarSession, sessionCookieName, type LiveCalendarProvider } from "@/lib/calendarServer";
+import { openCalendarSession, refreshCalendarSession, sealCalendarSession, sessionCookieName, type LiveCalendarProvider } from "@/lib/calendarServer";
 
 type RemoteCalendar = { id: string; name: string; primary?: boolean; color?: string; writable?: boolean };
 type GoogleEvent = { id?: string; status?: string; summary?: string; start?: { dateTime?: string; date?: string }; end?: { dateTime?: string; date?: string } };
 type MicrosoftEvent = { id?: string; subject?: string; start?: { dateTime?: string }; end?: { dateTime?: string }; isAllDay?: boolean };
 
-const sessionFor = async (provider: LiveCalendarProvider) => openCalendarSession((await cookies()).get(sessionCookieName(provider))?.value);
+const sessionFor = async (provider: LiveCalendarProvider) => {
+  const cookieStore = await cookies();
+  const current = openCalendarSession(cookieStore.get(sessionCookieName(provider))?.value);
+  if (!current) return null;
+  if (current.expiresAt > Date.now() + 60_000) return current;
+  try {
+    const refreshed = await refreshCalendarSession(provider, current);
+    cookieStore.set(sessionCookieName(provider), sealCalendarSession(refreshed), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 90,
+      path: "/",
+    });
+    return refreshed;
+  } catch {
+    return null;
+  }
+};
 
 async function googleCalendars(token: string): Promise<RemoteCalendar[]> {
   const response = await fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader", { headers: { authorization: `Bearer ${token}` }, cache: "no-store" });
