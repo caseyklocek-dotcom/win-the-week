@@ -149,6 +149,7 @@ export function UnifiedWeekCalendar({
           const conflicts = blocksConflict(block, visibleEvents);
           const top = Math.max(0, minutesFromStart(start) / 60 * HOUR_HEIGHT);
           const height = Math.max(28, (end.getTime() - start.getTime()) / 3_600_000 * HOUR_HEIGHT);
+          const isDragging = drag?.blockId === block.id;
           return (
             <button
               key={block.id}
@@ -161,9 +162,9 @@ export function UnifiedWeekCalendar({
               onClick={() => {
                 if (!suppressClickRef.current) setEditing(block.id);
               }}
-              className={`absolute left-1 right-1 z-10 cursor-grab select-none overflow-hidden rounded-lg px-2 py-1 text-left text-[10px] leading-tight text-white shadow-[0_3px_12px_rgba(255,107,94,.28)] transition hover:brightness-95 active:cursor-grabbing ${conflicts.length ? "ring-2 ring-amber-400" : ""} ${drag?.blockId === block.id ? "opacity-20" : ""}`}
-              style={{ top, height, backgroundColor: "var(--color-coral-500)", touchAction: "none" }}
-              title="Drag to move or click to edit"
+              className={`absolute left-1 right-1 z-10 cursor-grab select-none overflow-hidden rounded-lg px-2 py-1 text-left text-[10px] leading-tight text-white shadow-[0_3px_12px_rgba(255,107,94,.28)] transition-[transform,opacity,box-shadow,filter] duration-150 hover:brightness-95 active:cursor-grabbing ${conflicts.length ? "ring-2 ring-amber-400" : ""} ${isDragging ? "scale-[0.985] opacity-0 blur-[1px] saturate-75" : ""}`}
+              style={{ top, height, backgroundColor: "var(--color-coral-500)", touchAction: "none", boxShadow: isDragging ? "0 0 0 rgba(0,0,0,0)" : undefined }}
+              aria-label={`${block.label}. Drag to move or click to edit.`}
             >
               <div className="truncate font-bold">{block.label}</div>
               {height > 35 && <div className="mt-0.5 truncate text-white/85">{timeLabel(block.start)}–{timeLabel(block.end)}</div>}
@@ -171,12 +172,16 @@ export function UnifiedWeekCalendar({
           );
         })}
         {previewBlock && drag?.dayIndex === dayIndex && drag.mobile === mobile && (
-          <div className="pointer-events-none absolute left-1 right-1 z-30 rounded-lg bg-coral-500 px-2 py-1 text-[10px] leading-tight text-white shadow-[0_8px_24px_rgba(255,107,94,.38)] ring-2 ring-white/80 transition-[top] duration-75" style={{ top: drag.minuteOffset / 60 * HOUR_HEIGHT, height: Math.max(28, (new Date(previewBlock.end).getTime() - new Date(previewBlock.start).getTime()) / 3_600_000 * HOUR_HEIGHT) }}>
+          <div className="pointer-events-none absolute left-1 right-1 z-30 rounded-xl bg-coral-500 px-2 py-1 text-[10px] leading-tight text-white ring-2 ring-white/80 transition-[top,transform,box-shadow] duration-75" style={{ top: drag.minuteOffset / 60 * HOUR_HEIGHT, height: Math.max(28, (new Date(previewBlock.end).getTime() - new Date(previewBlock.start).getTime()) / 3_600_000 * HOUR_HEIGHT), transform: "translateY(-4px) scale(1.03) rotate(-1deg)", boxShadow: "0 18px 40px rgba(255,107,94,.42), 0 10px 22px rgba(0,0,0,.22)" }}>
             <div className="absolute inset-x-0 top-0 h-px -translate-y-px bg-coral-600"><span className="absolute -left-1.5 -top-1 h-2.5 w-2.5 rounded-full bg-coral-600 ring-2 ring-white" /></div>
             <div className="truncate font-bold">{previewBlock.label}</div>
             <div className="mt-0.5 truncate font-bold text-white">{timeLabel(previewBlock.start)}–{timeLabel(previewBlock.end)}</div>
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-charcoal-900 px-2.5 py-1 text-[11px] font-bold text-white shadow-lg">
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-charcoal-900/10 bg-cream-50 px-2.5 py-1 text-[11px] font-bold text-charcoal-900 shadow-[0_10px_24px_rgba(0,0,0,.28)]">
               {days[drag.dayIndex].toLocaleDateString("en-US", { weekday: "short" })} · {timeLabel(previewBlock.start)}
+            </div>
+            <div className="absolute -bottom-10 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/20 bg-charcoal-900 px-2.5 py-1 text-[11px] font-semibold text-cream-50 shadow-[0_10px_24px_rgba(0,0,0,.3)]">
+              <Icon name="grip" size={12} className="text-cream-50/90" />
+              Drag to move or click to edit
             </div>
           </div>
         )}
