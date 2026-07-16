@@ -176,11 +176,17 @@ export function UnifiedWeekCalendar({
             <div className="absolute inset-x-0 top-0 h-px -translate-y-px bg-coral-600"><span className="absolute -left-1.5 -top-1 h-2.5 w-2.5 rounded-full bg-coral-600 ring-2 ring-white" /></div>
             <div className="truncate font-bold">{previewBlock.label}</div>
             <div className="mt-0.5 truncate font-bold text-white">{timeLabel(previewBlock.start)}–{timeLabel(previewBlock.end)}</div>
-            <div className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-charcoal-900/10 bg-cream-50 px-2.5 py-1 text-[11px] font-bold text-charcoal-900 shadow-[0_10px_24px_rgba(0,0,0,.28)]">
+            <div
+              className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-bold shadow-[0_10px_24px_rgba(0,0,0,.28)]"
+              style={{ backgroundColor: "#1a1a1a", borderColor: "rgba(255,255,255,.18)", color: "#ffffff" }}
+            >
               {days[drag.dayIndex].toLocaleDateString("en-US", { weekday: "short" })} · {timeLabel(previewBlock.start)}
             </div>
-            <div className="absolute -bottom-10 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/20 bg-charcoal-900 px-2.5 py-1 text-[11px] font-semibold text-cream-50 shadow-[0_10px_24px_rgba(0,0,0,.3)]">
-              <Icon name="grip" size={12} className="text-cream-50/90" />
+            <div
+              className="absolute -bottom-10 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold shadow-[0_10px_24px_rgba(0,0,0,.3)]"
+              style={{ backgroundColor: "#1a1a1a", borderColor: "rgba(255,255,255,.18)", color: "#ffffff" }}
+            >
+              <Icon name="grip" size={12} className="opacity-90" />
               Drag to move or click to edit
             </div>
           </div>
